@@ -63,7 +63,9 @@ def read_video_data(source_dir_path1, source_dir_path2, source_file_names1, sour
 	source_file_paths1 = [os.path.join(source_dir_path1, "video", f + ".mpg") for f in source_file_names1]
 	source_file_paths2 = [os.path.join(source_dir_path2, "video", f + ".mpg") for f in source_file_names2]
 
-	face_detector = cv2.CascadeClassifier(os.path.join("res", "haarcascade_frontalface_alt.xml"))
+	face_detector = cv2.CascadeClassifier(
+		os.path.join(os.path.dirname(__file__), "res", "haarcascade_frontalface_alt.xml")
+	)
 
 	x = np.zeros(shape=(n_samples, 75, 128, 128), dtype=np.uint8)
 
