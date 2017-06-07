@@ -32,12 +32,12 @@ class AudioSourceSeparator:
 	def init_model(self, spectogram_size):
 		self._model = Sequential()
 
-		self._model.add(Dense(units=1024, input_dim=spectogram_size))
+		self._model.add(Dense(units=512, input_dim=spectogram_size))
 		self._model.add(BatchNormalization())
 		self._model.add(Activation("relu"))
 		self._model.add(Dropout(0.25))
 
-		self._model.add(Dense(units=1024))
+		self._model.add(Dense(units=512))
 		self._model.add(BatchNormalization())
 		self._model.add(Activation("relu"))
 		self._model.add(Dropout(0.25))
@@ -46,7 +46,7 @@ class AudioSourceSeparator:
 		self._model.compile(loss='mean_squared_error', optimizer='adam')
 
 	def train(self, x, y):
-		self._model.fit(x, y, batch_size=32, epochs=50, verbose=1)
+		self._model.fit(x, y, batch_size=32, epochs=100, verbose=1)
 
 	def evaluate(self, x, y):
 		score = self._model.evaluate(x, y, verbose=1)
