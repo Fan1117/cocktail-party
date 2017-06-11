@@ -12,6 +12,7 @@ import numpy as np
 
 from mediaio.audio_io import AudioSignal, AudioMixer
 from dsp.spectogram import MelConverter
+from utils import fs
 
 
 class AudioSourceSeparator:
@@ -66,7 +67,7 @@ class AudioSourceSeparator:
 		self._model.save_weights(weights_cache_path)
 
 
-def preprocess_signal(audio_signal, slice_duration_ms=100):
+def preprocess_audio_signal(audio_signal, slice_duration_ms=330):
 	new_signal_length = int(math.ceil(
 		float(audio_signal.get_number_of_samples()) / MelConverter.HOP_LENGTH
 	)) * MelConverter.HOP_LENGTH
@@ -89,29 +90,29 @@ def preprocess_signal(audio_signal, slice_duration_ms=100):
 	return sample
 
 
-def preprocess_signal_pair(source_file_path1, source_file_path2):
+def preprocess_audio_signal_pair(source_file_path1, source_file_path2):
 	signal1 = AudioSignal.from_wav_file(source_file_path1)
 	signal2 = AudioSignal.from_wav_file(source_file_path2)
 	mixed_signal = AudioMixer.mix([signal1, signal2])
 
-	x = preprocess_signal(mixed_signal)
-	y = preprocess_signal(signal1)
+	x = preprocess_audio_signal(mixed_signal)
+	y = preprocess_audio_signal(signal1)
 
 	return x, y, mixed_signal
 
 
 def preprocess_audio_data(source_dir_path1, source_dir_path2, max_pairs):
-	print("reading dataset...")
+	print("reading audio dataset...")
 
-	source_file_paths1 = [os.path.join(source_dir_path1, f) for f in os.listdir(source_dir_path1)]
-	source_file_paths2 = [os.path.join(source_dir_path2, f) for f in os.listdir(source_dir_path2)]
+	source_file_paths1 = fs.list_dir_by_name(source_dir_path1)
+	source_file_paths2 = fs.list_dir_by_name(source_dir_path2)
 
 	x = []
 	y = []
 
 	n_pairs = min(len(source_file_paths1), len(source_file_paths2), max_pairs)
 	for i in range(n_pairs):
-		x_i, y_i, _ = preprocess_signal_pair(source_file_paths1[i], source_file_paths2[i])
+		x_i, y_i, _ = preprocess_audio_signal_pair(source_file_paths1[i], source_file_paths2[i])
 
 		x.append(x_i)
 		y.append(y_i)
@@ -119,7 +120,7 @@ def preprocess_audio_data(source_dir_path1, source_dir_path2, max_pairs):
 	return np.concatenate(x), np.concatenate(y)
 
 
-def reconstruct_signal(y, sample_rate):
+def reconstruct_audio_signal(y, sample_rate):
 	mel_converter = MelConverter(sample_rate)
 
 	slice_mel_spectograms = [y[i, :].reshape((MelConverter.N_MEL_FREQS, -1)) for i in range(y.shape[0])]
@@ -151,16 +152,16 @@ def predict(args):
 	prediction_output_dir = os.path.join(args.prediction_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
 	os.mkdir(prediction_output_dir)
 
-	source_file_paths1 = [os.path.join(args.test_source_dir1, f) for f in os.listdir(args.test_source_dir1)]
-	source_file_paths2 = [os.path.join(args.test_source_dir2, f) for f in os.listdir(args.test_source_dir2)]
+	source_file_paths1 = fs.list_dir_by_name(args.test_source_dir1)
+	source_file_paths2 = fs.list_dir_by_name(args.test_source_dir2)
 
 	n_pairs = min(len(source_file_paths1), len(source_file_paths2))
 
 	for i in range(n_pairs):
-		x, _, mixed_signal = preprocess_signal_pair(source_file_paths1[i], source_file_paths2[i])
+		x, _, mixed_signal = preprocess_audio_signal_pair(source_file_paths1[i], source_file_paths2[i])
 		y_predicted = separator.predict(x)
 
-		reconstructed_signal = reconstruct_signal(y_predicted, mixed_signal.get_sample_rate())
+		reconstructed_signal = reconstruct_audio_signal(y_predicted, mixed_signal.get_sample_rate())
 
 		source_name1 = os.path.splitext(os.path.basename(source_file_paths1[i]))[0]
 		source_name2 = os.path.splitext(os.path.basename(source_file_paths2[i]))[0]
