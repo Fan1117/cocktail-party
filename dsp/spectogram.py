@@ -9,7 +9,7 @@ class MelConverter:
 	N_FFT = 2048
 	HOP_LENGTH = 128
 
-	N_MEL_FREQS = 192
+	N_MEL_FREQS = 256
 	FREQ_MIN_HZ = 300
 
 	def __init__(self, sample_rate):
