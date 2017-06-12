@@ -38,10 +38,10 @@ class MelConverter:
 
 		inverted_signal = griffin_lim(magnitude, MelConverter.N_FFT, MelConverter.HOP_LENGTH, n_iterations=10)
 
-		equalization_factor = np.iinfo(np.int16).max / np.abs(inverted_signal).max()
-		inverted_signal = inverted_signal * equalization_factor
+		inverted_audio_signal = AudioSignal(inverted_signal, self._SAMPLE_RATE)
+		inverted_audio_signal.set_sample_type(np.int16, equalize=True)
 
-		return AudioSignal(inverted_signal.astype(np.int16), self._SAMPLE_RATE)
+		return inverted_audio_signal
 
 
 def griffin_lim(magnitude, n_fft, hop_length, n_iterations):
