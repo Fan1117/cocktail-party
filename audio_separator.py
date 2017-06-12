@@ -1,6 +1,7 @@
 import argparse
 import os
 import shutil
+import copy
 import math
 from datetime import datetime
 
@@ -67,7 +68,9 @@ class AudioSourceSeparator:
 		self._model.save_weights(weights_cache_path)
 
 
-def preprocess_audio_signal(audio_signal, slice_duration_ms=330):
+def preprocess_audio_signal(audio_signal, slice_duration_ms=100):
+	audio_signal = copy.deepcopy(audio_signal)
+
 	new_signal_length = int(math.ceil(
 		float(audio_signal.get_number_of_samples()) / MelConverter.HOP_LENGTH
 	)) * MelConverter.HOP_LENGTH
