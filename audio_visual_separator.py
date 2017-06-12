@@ -139,7 +139,7 @@ class AudioVisualSourceSeparator:
 		self._model.save_weights(weights_cache_path)
 
 
-def preprocess_video_sample(video_source_file_path1, video_source_file_path2, slice_duration_ms=330):
+def preprocess_video_sample(video_source_file_path1, video_source_file_path2, slice_duration_ms=100):
 	face_detector = cv2.CascadeClassifier(
 		os.path.join(os.path.dirname(__file__), "res", "haarcascade_frontalface_alt.xml")
 	)
