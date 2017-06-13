@@ -45,7 +45,7 @@ class AudioSourceSeparator:
 		self._model.add(Activation("relu"))
 		self._model.add(Dropout(0.25))
 
-		self._model.add(Dense(units=spectogram_size))
+		self._model.add(Dense(units=spectogram_size, activation="sigmoid"))
 
 		optimizer = optimizers.adam(lr=0.01, decay=1e-6)
 		self._model.compile(loss='mean_squared_error', optimizer=optimizer)
@@ -68,7 +68,7 @@ class AudioSourceSeparator:
 		self._model.save_weights(weights_cache_path)
 
 
-def preprocess_audio_signal(audio_signal, slice_duration_ms=100):
+def get_mel_spectogram_slices(audio_signal, slice_duration_ms=100):
 	audio_signal = copy.deepcopy(audio_signal)
 
 	new_signal_length = int(math.ceil(
@@ -98,8 +98,13 @@ def preprocess_audio_signal_pair(source_file_path1, source_file_path2):
 	signal2 = AudioSignal.from_wav_file(source_file_path2)
 	mixed_signal = AudioMixer.mix([signal1, signal2])
 
-	x = preprocess_audio_signal(mixed_signal)
-	y = preprocess_audio_signal(signal1)
+	x = get_mel_spectogram_slices(mixed_signal)
+
+	mel_spectogram_slices1 = get_mel_spectogram_slices(signal1)
+	mel_spectogram_slices2 = get_mel_spectogram_slices(signal2)
+
+	y = np.zeros(shape=x.shape)
+	y[mel_spectogram_slices1 > mel_spectogram_slices2] = 1
 
 	return x, y, mixed_signal
 
@@ -123,13 +128,20 @@ def preprocess_audio_data(source_dir_path1, source_dir_path2, max_pairs):
 	return np.concatenate(x), np.concatenate(y)
 
 
-def reconstruct_audio_signal(y, sample_rate):
-	mel_converter = MelConverter(sample_rate)
+def reconstruct_audio_signal(y, mixed_signal, separation_mask_threshold=0.5):
+	source_separation_mask = np.zeros(shape=y.shape)
+	source_separation_mask[y > separation_mask_threshold] = 1
 
-	slice_mel_spectograms = [y[i, :].reshape((MelConverter.N_MEL_FREQS, -1)) for i in range(y.shape[0])]
-	full_mel_spectogram = np.concatenate(slice_mel_spectograms, axis=1)
+	source_mel_spectogram_slices = source_separation_mask * get_mel_spectogram_slices(mixed_signal)
+	slice_mel_spectograms = [
+		source_mel_spectogram_slices[i, :].reshape((MelConverter.N_MEL_FREQS, -1))
+		for i in range(source_mel_spectogram_slices.shape[0])
+	]
 
-	return mel_converter.reconstruct_signal_from_mel_spectogram(full_mel_spectogram)
+	source_mel_spectogram = np.concatenate(slice_mel_spectograms, axis=1)
+
+	mel_converter = MelConverter(mixed_signal.get_sample_rate())
+	return mel_converter.reconstruct_signal_from_mel_spectogram(source_mel_spectogram)
 
 
 def train(args):
@@ -161,10 +173,11 @@ def predict(args):
 	n_pairs = min(len(source_file_paths1), len(source_file_paths2))
 
 	for i in range(n_pairs):
+		print("predicting mix #%d..." % i)
 		x, _, mixed_signal = preprocess_audio_signal_pair(source_file_paths1[i], source_file_paths2[i])
 		y_predicted = separator.predict(x)
 
-		reconstructed_signal = reconstruct_audio_signal(y_predicted, mixed_signal.get_sample_rate())
+		reconstructed_signal = reconstruct_audio_signal(y_predicted, mixed_signal)
 
 		source_name1 = os.path.splitext(os.path.basename(source_file_paths1[i]))[0]
 		source_name2 = os.path.splitext(os.path.basename(source_file_paths2[i]))[0]
