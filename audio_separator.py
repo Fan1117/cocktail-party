@@ -4,6 +4,8 @@ import shutil
 import copy
 import math
 from datetime import datetime
+import glob
+import random
 
 from keras.layers import Dense, BatchNormalization, Activation, Dropout
 from keras.models import Sequential, model_from_json
@@ -13,7 +15,6 @@ import numpy as np
 
 from mediaio.audio_io import AudioSignal, AudioMixer
 from dsp.spectogram import MelConverter
-from utils import fs
 
 
 class AudioSourceSeparator:
@@ -109,25 +110,6 @@ def preprocess_audio_signal_pair(source_file_path1, source_file_path2):
 	return x, y, mixed_signal
 
 
-def preprocess_audio_data(source_dir_path1, source_dir_path2, max_pairs):
-	print("reading audio dataset...")
-
-	source_file_paths1 = fs.list_dir_by_name(source_dir_path1)
-	source_file_paths2 = fs.list_dir_by_name(source_dir_path2)
-
-	x = []
-	y = []
-
-	n_pairs = min(len(source_file_paths1), len(source_file_paths2), max_pairs)
-	for i in range(n_pairs):
-		x_i, y_i, _ = preprocess_audio_signal_pair(source_file_paths1[i], source_file_paths2[i])
-
-		x.append(x_i)
-		y.append(y_i)
-
-	return np.concatenate(x), np.concatenate(y)
-
-
 def reconstruct_audio_signal(y, mixed_signal, separation_mask_threshold=0.5):
 	source_separation_mask = np.zeros(shape=y.shape)
 	source_separation_mask[y > separation_mask_threshold] = 1
@@ -140,12 +122,42 @@ def reconstruct_audio_signal(y, mixed_signal, separation_mask_threshold=0.5):
 
 	source_mel_spectogram = np.concatenate(slice_mel_spectograms, axis=1)
 
+	# TODO: maybe use the original phase of each frequency instead of using griffin-lim
 	mel_converter = MelConverter(mixed_signal.get_sample_rate())
 	return mel_converter.reconstruct_signal_from_mel_spectogram(source_mel_spectogram)
 
 
+def preprocess_audio_data(source_file_pairs):
+	print("reading audio dataset...")
+
+	x = []
+	y = []
+
+	for source_file_path1, source_file_path2 in source_file_pairs:
+		x_i, y_i, _ = preprocess_audio_signal_pair(source_file_path1, source_file_path2)
+
+		x.append(x_i)
+		y.append(y_i)
+
+	return np.concatenate(x), np.concatenate(y)
+
+
+def list_audio_source_file_pairs(dataset_dir, speaker_ids=None, max_pairs=None):
+	if speaker_ids is None:
+		speaker_ids = os.listdir(dataset_dir)
+
+	speaker_data1 = glob.glob(os.path.join(dataset_dir, speaker_ids[0], "audio", "*.wav"))
+	speaker_data2 = glob.glob(os.path.join(dataset_dir, speaker_ids[1], "audio", "*.wav"))
+
+	random.shuffle(speaker_data1)
+	random.shuffle(speaker_data2)
+
+	return zip(speaker_data1, speaker_data2)[:max_pairs]
+
+
 def train(args):
-	x_train, y_train = preprocess_audio_data(args.train_source_dir1, args.train_source_dir2, max_pairs=500)
+	source_file_pairs = list_audio_source_file_pairs(args.dataset_dir, speaker_ids=args.speakers, max_pairs=500)
+	x_train, y_train = preprocess_audio_data(source_file_pairs)
 
 	separator = AudioSourceSeparator()
 	separator.init_model(spectogram_size=x_train.shape[1])
@@ -154,7 +166,8 @@ def train(args):
 
 
 def evaluate(args):
-	x_test, y_test = preprocess_audio_data(args.test_source_dir1, args.test_source_dir2, max_pairs=10)
+	source_file_pairs = list_audio_source_file_pairs(args.dataset_dir)
+	x_test, y_test = preprocess_audio_data(source_file_pairs)
 
 	separator = AudioSourceSeparator.load(args.model_cache, args.weights_cache)
 	score = separator.evaluate(x_test, y_test)
@@ -167,20 +180,16 @@ def predict(args):
 	prediction_output_dir = os.path.join(args.prediction_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
 	os.mkdir(prediction_output_dir)
 
-	source_file_paths1 = fs.list_dir_by_name(args.test_source_dir1)
-	source_file_paths2 = fs.list_dir_by_name(args.test_source_dir2)
+	source_file_pairs = list_audio_source_file_pairs(args.dataset_dir, speaker_ids=args.speakers)
 
-	n_pairs = min(len(source_file_paths1), len(source_file_paths2))
-
-	for i in range(n_pairs):
-		print("predicting mix #%d..." % i)
-		x, _, mixed_signal = preprocess_audio_signal_pair(source_file_paths1[i], source_file_paths2[i])
+	for source_file_path1, source_file_path2 in source_file_pairs:
+		x, _, mixed_signal = preprocess_audio_signal_pair(source_file_path1, source_file_path2)
 		y_predicted = separator.predict(x)
 
 		reconstructed_signal = reconstruct_audio_signal(y_predicted, mixed_signal)
 
-		source_name1 = os.path.splitext(os.path.basename(source_file_paths1[i]))[0]
-		source_name2 = os.path.splitext(os.path.basename(source_file_paths2[i]))[0]
+		source_name1 = os.path.splitext(os.path.basename(source_file_path1))[0]
+		source_name2 = os.path.splitext(os.path.basename(source_file_path2))[0]
 
 		source_prediction_dir_path = os.path.join(prediction_output_dir, source_name1 + "_" + source_name2)
 		os.mkdir(source_prediction_dir_path)
@@ -188,8 +197,8 @@ def predict(args):
 		reconstructed_signal.save_to_wav_file(os.path.join(source_prediction_dir_path, "predicted.wav"))
 		mixed_signal.save_to_wav_file(os.path.join(source_prediction_dir_path, "mix.wav"))
 
-		shutil.copy(source_file_paths1[i], source_prediction_dir_path)
-		shutil.copy(source_file_paths2[i], source_prediction_dir_path)
+		shutil.copy(source_file_path1, source_prediction_dir_path)
+		shutil.copy(source_file_path2, source_prediction_dir_path)
 
 
 def main():
@@ -197,18 +206,18 @@ def main():
 	action_parsers = parser.add_subparsers()
 
 	train_parser = action_parsers.add_parser("train")
-	train_parser.add_argument("train_source_dir1", type=str)
-	train_parser.add_argument("train_source_dir2", type=str)
+	train_parser.add_argument("dataset_dir", type=str)
 	train_parser.add_argument("model_cache", type=str)
 	train_parser.add_argument("weights_cache", type=str)
+	train_parser.add_argument("--speakers", nargs="+", type=str)
 	train_parser.set_defaults(func=train)
 
 	predict_parser = action_parsers.add_parser("predict")
-	predict_parser.add_argument("test_source_dir1", type=str)
-	predict_parser.add_argument("test_source_dir2", type=str)
+	predict_parser.add_argument("dataset_dir", type=str)
 	predict_parser.add_argument("model_cache", type=str)
 	predict_parser.add_argument("weights_cache", type=str)
 	predict_parser.add_argument("prediction_output_dir", type=str)
+	predict_parser.add_argument("--speakers", nargs="+", type=str)
 	predict_parser.set_defaults(func=predict)
 
 	args = parser.parse_args()
