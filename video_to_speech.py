@@ -120,6 +120,8 @@ class VisualSpeechPredictor:
 
 
 def preprocess_video_sample(video_file_path, slice_duration_ms=330):
+	print("preprocessing %s" % video_file_path)
+
 	face_detector = cv2.CascadeClassifier(
 		os.path.join(os.path.dirname(__file__), "res", "haarcascade_frontalface_alt.xml")
 	)
@@ -139,8 +141,7 @@ def preprocess_video_sample(video_file_path, slice_duration_ms=330):
 			face_cropped_frames[i, :] = cv2.resize(face, (128, 128))
 
 		else:
-			print("failed to locate face in %s" % video_file_path)
-			return None
+			raise Exception("failed to locate face")
 
 	# fit to tensorflow channel_last data format
 	face_cropped_frames = face_cropped_frames.transpose((1, 2, 0))
@@ -156,7 +157,18 @@ def preprocess_video_sample(video_file_path, slice_duration_ms=330):
 	return np.stack(slices)
 
 
+def try_preprocess_video_sample(video_file_path):
+	try:
+		return preprocess_video_sample(video_file_path)
+
+	except Exception as e:
+		print("failed to preprocess %s (%s)" % (video_file_path, e))
+		return None
+
+
 def preprocess_audio_sample(audio_file_path, slice_duration_ms=330):
+	print("preprocessing %s" % audio_file_path)
+
 	audio_signal = AudioSignal.from_wav_file(audio_file_path)
 
 	new_signal_length = int(math.ceil(
@@ -199,7 +211,7 @@ def preprocess_data(video_file_paths):
 	audio_file_paths = [video_to_audio_path(f) for f in video_file_paths]
 
 	thread_pool = multiprocessing.Pool(8)
-	x = thread_pool.map(preprocess_video_sample, video_file_paths)
+	x = thread_pool.map(try_preprocess_video_sample, video_file_paths)
 	y = thread_pool.map(preprocess_audio_sample, audio_file_paths)
 
 	invalid_sample_ids = [i for i, sample in enumerate(x) if sample is None]
@@ -223,7 +235,7 @@ def list_video_files(dataset_dir, speaker_ids=None, max_files=None):
 
 
 def train(args):
-	video_file_paths = list_video_files(args.dataset_dir, args.speakers, max_files=1000)
+	video_file_paths = list_video_files(args.dataset_dir, args.speakers, max_files=3000)
 	x, y = preprocess_data(video_file_paths)
 
 	predictor = VisualSpeechPredictor()
@@ -238,21 +250,28 @@ def predict(args):
 	prediction_output_dir = os.path.join(args.prediction_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
 	os.mkdir(prediction_output_dir)
 
-	video_file_paths = list_video_files(args.dataset_dir, args.speakers, max_files=10)
-	for video_file_path in video_file_paths:
-		x = preprocess_video_sample(video_file_path)
-		if x is None:
-			print("invalid sample (%s). skipping" % video_file_path)
-			continue
+	if args.speakers is None:
+		args.speakers = os.listdir(args.dataset_dir)
 
-		y_predicted = predictor.predict(x)
+	for speaker_id in args.speakers:
+		speaker_prediction_dir = os.path.join(prediction_output_dir, speaker_id)
+		os.mkdir(speaker_prediction_dir)
 
-		sample_name = os.path.splitext(os.path.basename(video_file_path))[0]
+		video_file_paths = list_video_files(args.dataset_dir, [speaker_id], max_files=20)
+		for video_file_path in video_file_paths:
+			try:
+				x = preprocess_video_sample(video_file_path)
+				y_predicted = predictor.predict(x)
 
-		reconstructed_signal = reconstruct_audio_signal(y_predicted, sample_rate=44100)
-		reconstructed_signal.save_to_wav_file(os.path.join(prediction_output_dir, "%s.wav" % sample_name))
+				sample_name = os.path.splitext(os.path.basename(video_file_path))[0]
 
-		shutil.copy(video_file_path, prediction_output_dir)
+				reconstructed_signal = reconstruct_audio_signal(y_predicted, sample_rate=44100)
+				reconstructed_signal.save_to_wav_file(os.path.join(speaker_prediction_dir, "%s.wav" % sample_name))
+
+				shutil.copy(video_file_path, speaker_prediction_dir)
+
+			except Exception as e:
+				print("failed to preprocess %s (%s). skipping" % (video_file_path, e))
 
 
 def main():
