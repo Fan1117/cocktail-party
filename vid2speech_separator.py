@@ -48,10 +48,10 @@ def predict(dataset_dir, vid2speech_prediction_dir, separation_output_dir, speak
 			spectogram2 = spectogram2[:, :mixed_spectogram.shape[1]]
 
 		mask1 = np.zeros(shape=mixed_spectogram.shape)
-		mask1[spectogram1 > (spectogram2 + separation_threshold)] = 1
+		mask1[spectogram1 - spectogram2 > separation_threshold] = 1
 
 		mask2 = np.zeros(shape=mixed_spectogram.shape)
-		mask2[(spectogram1 + separation_threshold) < spectogram2] = 1
+		mask2[spectogram2 - spectogram1 > separation_threshold] = 1
 
 		# mask2 = 1 - mask1
 
