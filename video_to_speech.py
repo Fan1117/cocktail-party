@@ -221,11 +221,8 @@ def preprocess_data(video_file_paths):
 	return np.concatenate(x), np.concatenate(y)
 
 
-def list_video_files(dataset_dir, speaker_ids=None, max_files=None):
+def list_video_files(dataset_dir, speaker_ids, max_files=None):
 	video_file_paths = []
-
-	if speaker_ids is None:
-		speaker_ids = os.listdir(dataset_dir)
 
 	for speaker_id in speaker_ids:
 		video_file_paths.extend(glob.glob(os.path.join(dataset_dir, speaker_id, "video", "*.mpg")))
@@ -234,8 +231,23 @@ def list_video_files(dataset_dir, speaker_ids=None, max_files=None):
 	return video_file_paths[:max_files]
 
 
+def list_speakers(args):
+	if args.speakers is None:
+		speaker_ids = os.listdir(args.dataset_dir)
+	else:
+		speaker_ids = args.speakers
+
+	if args.ignored_speakers is not None:
+		for speaker_id in args.ignored_speakers:
+			speaker_ids.remove(speaker_id)
+
+	return speaker_ids
+
+
 def train(args):
-	video_file_paths = list_video_files(args.dataset_dir, args.speakers, max_files=3000)
+	speaker_ids = list_speakers(args)
+	video_file_paths = list_video_files(args.dataset_dir, speaker_ids, max_files=3000)
+
 	x, y = preprocess_data(video_file_paths)
 
 	predictor = VisualSpeechPredictor()
@@ -245,15 +257,14 @@ def train(args):
 
 
 def predict(args):
+	speaker_ids = list_speakers(args)
+
 	predictor = VisualSpeechPredictor.load(args.model_cache, args.weights_cache)
 
 	prediction_output_dir = os.path.join(args.prediction_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
 	os.mkdir(prediction_output_dir)
 
-	if args.speakers is None:
-		args.speakers = os.listdir(args.dataset_dir)
-
-	for speaker_id in args.speakers:
+	for speaker_id in speaker_ids:
 		speaker_prediction_dir = os.path.join(prediction_output_dir, speaker_id)
 		os.mkdir(speaker_prediction_dir)
 
@@ -283,6 +294,7 @@ def main():
 	train_parser.add_argument("model_cache", type=str)
 	train_parser.add_argument("weights_cache", type=str)
 	train_parser.add_argument("--speakers", nargs="+", type=str)
+	train_parser.add_argument("--ignored_speakers", nargs="+", type=str)
 	train_parser.set_defaults(func=train)
 
 	predict_parser = action_parsers.add_parser("predict")
