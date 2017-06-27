@@ -11,7 +11,7 @@ from dsp.spectogram import MelConverter
 from audio_separator import list_audio_source_file_pairs
 
 
-def predict(dataset_dir, vid2speech_prediction_dir, separation_output_dir, speakers, separation_threshold=5):
+def predict(dataset_dir, speech_prediction_dir, separation_output_dir, speakers, separation_threshold=5):
 	source_file_pairs = list_audio_source_file_pairs(dataset_dir, speakers, max_pairs=10)
 
 	separation_output_dir = os.path.join(separation_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
@@ -29,17 +29,17 @@ def predict(dataset_dir, vid2speech_prediction_dir, separation_output_dir, speak
 		source_name1 = os.path.splitext(os.path.basename(source_file_path1))[0]
 		source_name2 = os.path.splitext(os.path.basename(source_file_path2))[0]
 
-		vid2speech_prediction_path1 = glob.glob(os.path.join(vid2speech_prediction_dir, speakers[0], source_name1 + ".wav"))
-		vid2speech_prediction_path2 = glob.glob(os.path.join(vid2speech_prediction_dir, speakers[1], source_name2 + ".wav"))
+		speech_prediction_path1 = glob.glob(os.path.join(speech_prediction_dir, speakers[0], source_name1 + ".wav"))
+		speech_prediction_path2 = glob.glob(os.path.join(speech_prediction_dir, speakers[1], source_name2 + ".wav"))
 
-		if len(vid2speech_prediction_path1) != 1 or len(vid2speech_prediction_path2) != 1:
+		if len(speech_prediction_path1) != 1 or len(speech_prediction_path2) != 1:
 			continue
 
-		vid2speech_signal1 = AudioSignal.from_wav_file(vid2speech_prediction_path1[0])
-		vid2speech_signal2 = AudioSignal.from_wav_file(vid2speech_prediction_path2[0])
+		speech_signal1 = AudioSignal.from_wav_file(speech_prediction_path1[0])
+		speech_signal2 = AudioSignal.from_wav_file(speech_prediction_path2[0])
 
-		spectogram1 = mel_converter.signal_to_mel_spectogram(vid2speech_signal1)
-		spectogram2 = mel_converter.signal_to_mel_spectogram(vid2speech_signal2)
+		spectogram1 = mel_converter.signal_to_mel_spectogram(speech_signal1)
+		spectogram2 = mel_converter.signal_to_mel_spectogram(speech_signal2)
 
 		if mixed_spectogram.shape[1] > spectogram1.shape[1]:
 			mixed_spectogram = mixed_spectogram[:, :spectogram1.shape[1]]
@@ -74,12 +74,12 @@ def predict(dataset_dir, vid2speech_prediction_dir, separation_output_dir, speak
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("dataset_dir", type=str)
-	parser.add_argument("vid2speech_prediction_dir", type=str)
+	parser.add_argument("speech_prediction_dir", type=str)
 	parser.add_argument("separation_output_dir", type=str)
 	parser.add_argument("speakers", nargs=2, type=str)
 	args = parser.parse_args()
 
-	predict(args.dataset_dir, args.vid2speech_prediction_dir, args.separation_output_dir, args.speakers)
+	predict(args.dataset_dir, args.speech_prediction_dir, args.separation_output_dir, args.speakers)
 
 
 if __name__ == "__main__":

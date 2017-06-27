@@ -11,7 +11,7 @@ from mediaio.audio_io import AudioSignal, AudioMixer
 from dsp.spectogram import MelConverter
 
 
-def enhance(dataset_dir, speaker_id, noise_dir, vid2speech_prediction_dir,
+def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir,
 			enhancement_output_dir, max_pairs=None, enhancement_threshold=70):
 
 	speaker_files = glob.glob(os.path.join(dataset_dir, speaker_id, "audio", "*.wav"))
@@ -44,12 +44,12 @@ def enhance(dataset_dir, speaker_id, noise_dir, vid2speech_prediction_dir,
 		speaker_file_name = os.path.splitext(os.path.basename(speaker_file_path))[0]
 		noise_file_name = os.path.splitext(os.path.basename(noise_file_path))[0]
 
-		vid2speech_prediction_path = glob.glob(os.path.join(vid2speech_prediction_dir, speaker_id, speaker_file_name + ".wav"))
-		if len(vid2speech_prediction_path) != 1:
+		speech_prediction_path = glob.glob(os.path.join(speech_prediction_dir, speaker_id, speaker_file_name + ".wav"))
+		if len(speech_prediction_path) != 1:
 			continue
 
-		vid2speech_signal = AudioSignal.from_wav_file(vid2speech_prediction_path[0])
-		predicted_speech_spectogram = mel_converter.signal_to_mel_spectogram(vid2speech_signal)
+		predicted_speech_signal = AudioSignal.from_wav_file(speech_prediction_path[0])
+		predicted_speech_spectogram = mel_converter.signal_to_mel_spectogram(predicted_speech_signal)
 
 		if mixed_spectogram.shape[1] > predicted_speech_spectogram.shape[1]:
 			mixed_spectogram = mixed_spectogram[:, :predicted_speech_spectogram.shape[1]]
@@ -78,11 +78,11 @@ def main():
 	parser.add_argument("dataset_dir", type=str)
 	parser.add_argument("speaker", type=str)
 	parser.add_argument("noise_dir", type=str)
-	parser.add_argument("vid2speech_prediction_dir", type=str)
+	parser.add_argument("speech_prediction_dir", type=str)
 	parser.add_argument("enhancement_output_dir", type=str)
 	args = parser.parse_args()
 
-	enhance(args.dataset_dir, args.speaker, args.noise_dir, args.vid2speech_prediction_dir, args.enhancement_output_dir, max_pairs=10)
+	enhance(args.dataset_dir, args.speaker, args.noise_dir, args.speech_prediction_dir, args.enhancement_output_dir, max_pairs=10)
 
 
 if __name__ == "__main__":
