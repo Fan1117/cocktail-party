@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 import glob
+import math
 from datetime import datetime
 
 import numpy as np
@@ -11,7 +12,14 @@ from dsp.spectogram import MelConverter
 from audio_separator import list_audio_source_file_pairs
 
 
-def predict(dataset_dir, speech_prediction_dir, separation_output_dir, speakers, separation_threshold=5):
+def softmax(x):
+	x_exp = [math.exp(i) for i in x]
+	x_exp_sum = sum(x_exp)
+
+	return [i / x_exp_sum for i in x_exp]
+
+
+def separate(dataset_dir, speech_prediction_dir, separation_output_dir, speakers):
 	source_file_pairs = list_audio_source_file_pairs(dataset_dir, speakers, max_pairs=10)
 
 	separation_output_dir = os.path.join(separation_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
@@ -48,10 +56,15 @@ def predict(dataset_dir, speech_prediction_dir, separation_output_dir, speakers,
 			spectogram2 = spectogram2[:, :mixed_spectogram.shape[1]]
 
 		mask1 = np.zeros(shape=mixed_spectogram.shape)
-		mask1[spectogram1 - spectogram2 > separation_threshold] = 1
-
 		mask2 = np.zeros(shape=mixed_spectogram.shape)
-		mask2[spectogram2 - spectogram1 > separation_threshold] = 1
+
+		for i in range(mixed_spectogram.shape[0]):
+			for j in range(mixed_spectogram.shape[1]):
+				magnitudes = [spectogram1[i, j], spectogram2[i, j]]
+				weights = softmax(magnitudes)
+
+				mask1[i, j] = weights[0]
+				mask2[i, j] = weights[1]
 
 		separated_spectogram1 = mixed_spectogram * mask1
 		separated_spectogram2 = mixed_spectogram * mask2
@@ -79,7 +92,7 @@ def main():
 	parser.add_argument("speakers", nargs=2, type=str)
 	args = parser.parse_args()
 
-	predict(args.dataset_dir, args.speech_prediction_dir, args.separation_output_dir, args.speakers)
+	separate(args.dataset_dir, args.speech_prediction_dir, args.separation_output_dir, args.speakers)
 
 
 if __name__ == "__main__":
