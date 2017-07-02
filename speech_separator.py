@@ -8,7 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from mediaio.audio_io import AudioSignal, AudioMixer
-from dsp.spectogram import MelConverter
+from dsp.spectrogram import MelConverter
 from audio_separator import list_audio_source_file_pairs
 
 
@@ -32,7 +32,7 @@ def separate(dataset_dir, speech_prediction_dir, separation_output_dir, speakers
 		mixed_signal = AudioMixer.mix([source_signal1, source_signal2])
 
 		mel_converter = MelConverter(mixed_signal.get_sample_rate())
-		mixed_spectogram = mel_converter.signal_to_mel_spectogram(mixed_signal)
+		mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
 
 		source_name1 = os.path.splitext(os.path.basename(source_file_path1))[0]
 		source_name2 = os.path.splitext(os.path.basename(source_file_path2))[0]
@@ -46,31 +46,31 @@ def separate(dataset_dir, speech_prediction_dir, separation_output_dir, speakers
 		speech_signal1 = AudioSignal.from_wav_file(speech_prediction_path1[0])
 		speech_signal2 = AudioSignal.from_wav_file(speech_prediction_path2[0])
 
-		spectogram1 = mel_converter.signal_to_mel_spectogram(speech_signal1)
-		spectogram2 = mel_converter.signal_to_mel_spectogram(speech_signal2)
+		spectrogram1 = mel_converter.signal_to_mel_spectrogram(speech_signal1)
+		spectrogram2 = mel_converter.signal_to_mel_spectrogram(speech_signal2)
 
-		if mixed_spectogram.shape[1] > spectogram1.shape[1]:
-			mixed_spectogram = mixed_spectogram[:, :spectogram1.shape[1]]
+		if mixed_spectrogram.shape[1] > spectrogram1.shape[1]:
+			mixed_spectrogram = mixed_spectrogram[:, :spectrogram1.shape[1]]
 		else:
-			spectogram1 = spectogram1[:, :mixed_spectogram.shape[1]]
-			spectogram2 = spectogram2[:, :mixed_spectogram.shape[1]]
+			spectrogram1 = spectrogram1[:, :mixed_spectrogram.shape[1]]
+			spectrogram2 = spectrogram2[:, :mixed_spectrogram.shape[1]]
 
-		mask1 = np.zeros(shape=mixed_spectogram.shape)
-		mask2 = np.zeros(shape=mixed_spectogram.shape)
+		mask1 = np.zeros(shape=mixed_spectrogram.shape)
+		mask2 = np.zeros(shape=mixed_spectrogram.shape)
 
-		for i in range(mixed_spectogram.shape[0]):
-			for j in range(mixed_spectogram.shape[1]):
-				magnitudes = [spectogram1[i, j], spectogram2[i, j]]
+		for i in range(mixed_spectrogram.shape[0]):
+			for j in range(mixed_spectrogram.shape[1]):
+				magnitudes = [spectrogram1[i, j], spectrogram2[i, j]]
 				weights = softmax(magnitudes)
 
 				mask1[i, j] = weights[0]
 				mask2[i, j] = weights[1]
 
-		separated_spectogram1 = mixed_spectogram * mask1
-		separated_spectogram2 = mixed_spectogram * mask2
+		separated_spectrogram1 = mixed_spectrogram * mask1
+		separated_spectrogram2 = mixed_spectrogram * mask2
 
-		reconstructed_signal1 = mel_converter.reconstruct_signal_from_mel_spectogram(separated_spectogram1)
-		reconstructed_signal2 = mel_converter.reconstruct_signal_from_mel_spectogram(separated_spectogram2)
+		reconstructed_signal1 = mel_converter.reconstruct_signal_from_mel_spectrogram(separated_spectrogram1)
+		reconstructed_signal2 = mel_converter.reconstruct_signal_from_mel_spectrogram(separated_spectrogram2)
 
 		source_separation_dir_path = os.path.join(separation_output_dir, source_name1 + "_" + source_name2)
 		os.mkdir(source_separation_dir_path)

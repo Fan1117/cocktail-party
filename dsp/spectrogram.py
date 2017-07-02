@@ -22,19 +22,17 @@ class MelConverter:
 			fmin=MelConverter.FREQ_MIN_HZ
 		)
 
-	def signal_to_mel_spectogram(self, audio_signal):
+	def signal_to_mel_spectrogram(self, audio_signal):
 		signal = audio_signal.get_data(channel_index=0)
 		D = librosa.core.stft(signal, n_fft=MelConverter.N_FFT, hop_length=MelConverter.HOP_LENGTH)
 		magnitude, phase = librosa.core.magphase(D)
 
-		mel_spectogram = np.dot(self._MEL_FILTER, magnitude)
-		mel_spectogram = librosa.amplitude_to_db(mel_spectogram)
+		mel_spectrogram = np.dot(self._MEL_FILTER, magnitude)
+		return librosa.amplitude_to_db(mel_spectrogram)
 
-		return mel_spectogram
-
-	def reconstruct_signal_from_mel_spectogram(self, mel_spectogram):
-		mel_spectogram = librosa.db_to_amplitude(mel_spectogram)
-		magnitude = np.dot(np.linalg.pinv(self._MEL_FILTER), mel_spectogram)
+	def reconstruct_signal_from_mel_spectrogram(self, mel_spectrogram):
+		mel_spectrogram = librosa.db_to_amplitude(mel_spectrogram)
+		magnitude = np.dot(np.linalg.pinv(self._MEL_FILTER), mel_spectrogram)
 
 		inverted_signal = griffin_lim(magnitude, MelConverter.N_FFT, MelConverter.HOP_LENGTH, n_iterations=10)
 

@@ -17,7 +17,7 @@ import cv2
 
 from mediaio.video_io import VideoFileReader
 from mediaio.audio_io import AudioSignal
-from dsp.spectogram import MelConverter
+from dsp.spectrogram import MelConverter
 
 
 class VisualSpeechPredictor:
@@ -36,7 +36,7 @@ class VisualSpeechPredictor:
 
 		return predictor
 
-	def init_model(self, video_shape, audio_spectogram_size):
+	def init_model(self, video_shape, audio_spectrogram_size):
 		self._model = Sequential()
 
 		self._model.add(Convolution2D(32, (3, 3), padding="same", kernel_initializer="he_normal", input_shape=video_shape))
@@ -96,7 +96,7 @@ class VisualSpeechPredictor:
 		self._model.add(Activation("relu"))
 		self._model.add(Dropout(0.2))
 
-		self._model.add(Dense(units=audio_spectogram_size))
+		self._model.add(Dense(units=audio_spectrogram_size))
 
 		optimizer = optimizers.adam(lr=0.01, decay=1e-6)
 		self._model.compile(loss='mean_squared_error', optimizer=optimizer)
@@ -178,27 +178,27 @@ def preprocess_audio_sample(audio_file_path, slice_duration_ms=330):
 	audio_signal.pad_with_zeros(new_signal_length)
 
 	mel_converter = MelConverter(audio_signal.get_sample_rate())
-	mel_spectogram = mel_converter.signal_to_mel_spectogram(audio_signal)
+	mel_spectrogram = mel_converter.signal_to_mel_spectrogram(audio_signal)
 
 	samples_per_slice = int((float(slice_duration_ms) / 1000) * audio_signal.get_sample_rate())
-	spectogram_samples_per_slice = int(samples_per_slice / MelConverter.HOP_LENGTH)
+	spectrogram_samples_per_slice = int(samples_per_slice / MelConverter.HOP_LENGTH)
 
-	n_slices = int(mel_spectogram.shape[1] / spectogram_samples_per_slice)
+	n_slices = int(mel_spectrogram.shape[1] / spectrogram_samples_per_slice)
 
-	sample = np.ndarray(shape=(n_slices, MelConverter.N_MEL_FREQS * spectogram_samples_per_slice))
+	sample = np.ndarray(shape=(n_slices, MelConverter.N_MEL_FREQS * spectrogram_samples_per_slice))
 
 	for i in range(n_slices):
-		sample[i, :] = mel_spectogram[:, (i * spectogram_samples_per_slice):((i + 1) * spectogram_samples_per_slice)].flatten()
+		sample[i, :] = mel_spectrogram[:, (i * spectrogram_samples_per_slice):((i + 1) * spectrogram_samples_per_slice)].flatten()
 
 	return sample
 
 
 def reconstruct_audio_signal(y, sample_rate):
-	slice_mel_spectograms = [y[i, :].reshape((MelConverter.N_MEL_FREQS, -1)) for i in range(y.shape[0])]
-	full_mel_spectogram = np.concatenate(slice_mel_spectograms, axis=1)
+	slice_mel_spectrograms = [y[i, :].reshape((MelConverter.N_MEL_FREQS, -1)) for i in range(y.shape[0])]
+	full_mel_spectrogram = np.concatenate(slice_mel_spectrograms, axis=1)
 
 	mel_converter = MelConverter(sample_rate)
-	return mel_converter.reconstruct_signal_from_mel_spectogram(full_mel_spectogram)
+	return mel_converter.reconstruct_signal_from_mel_spectrogram(full_mel_spectrogram)
 
 
 def video_to_audio_path(video_file_path):
@@ -251,7 +251,7 @@ def train(args):
 	x, y = preprocess_data(video_file_paths)
 
 	predictor = VisualSpeechPredictor()
-	predictor.init_model(video_shape=x.shape[1:], audio_spectogram_size=y.shape[1])
+	predictor.init_model(video_shape=x.shape[1:], audio_spectrogram_size=y.shape[1])
 	predictor.train(x, y)
 	predictor.dump(args.model_cache, args.weights_cache)
 

@@ -14,7 +14,7 @@ from keras import optimizers
 import numpy as np
 
 from mediaio.audio_io import AudioSignal, AudioMixer
-from dsp.spectogram import MelConverter
+from dsp.spectrogram import MelConverter
 
 
 class AudioSourceSeparator:
@@ -33,10 +33,10 @@ class AudioSourceSeparator:
 
 		return separator
 
-	def init_model(self, spectogram_size):
+	def init_model(self, spectrogram_size):
 		self._model = Sequential()
 
-		self._model.add(Dense(units=512, input_dim=spectogram_size))
+		self._model.add(Dense(units=512, input_dim=spectrogram_size))
 		self._model.add(BatchNormalization())
 		self._model.add(Activation("relu"))
 		self._model.add(Dropout(0.25))
@@ -46,7 +46,7 @@ class AudioSourceSeparator:
 		self._model.add(Activation("relu"))
 		self._model.add(Dropout(0.25))
 
-		self._model.add(Dense(units=spectogram_size, activation="sigmoid"))
+		self._model.add(Dense(units=spectrogram_size, activation="sigmoid"))
 
 		optimizer = optimizers.adam(lr=0.01, decay=1e-6)
 		self._model.compile(loss='mean_squared_error', optimizer=optimizer)
@@ -69,7 +69,7 @@ class AudioSourceSeparator:
 		self._model.save_weights(weights_cache_path)
 
 
-def get_mel_spectogram_slices(audio_signal, slice_duration_ms=100):
+def get_mel_spectrogram_slices(audio_signal, slice_duration_ms=100):
 	audio_signal = copy.deepcopy(audio_signal)
 
 	new_signal_length = int(math.ceil(
@@ -79,17 +79,17 @@ def get_mel_spectogram_slices(audio_signal, slice_duration_ms=100):
 	audio_signal.pad_with_zeros(new_signal_length)
 
 	mel_converter = MelConverter(audio_signal.get_sample_rate())
-	mel_spectogram = mel_converter.signal_to_mel_spectogram(audio_signal)
+	mel_spectrogram = mel_converter.signal_to_mel_spectrogram(audio_signal)
 
 	samples_per_slice = int((float(slice_duration_ms) / 1000) * audio_signal.get_sample_rate())
-	spectogram_samples_per_slice = int(samples_per_slice / MelConverter.HOP_LENGTH)
+	spectrogram_samples_per_slice = int(samples_per_slice / MelConverter.HOP_LENGTH)
 
-	n_slices = int(mel_spectogram.shape[1] / spectogram_samples_per_slice)
+	n_slices = int(mel_spectrogram.shape[1] / spectrogram_samples_per_slice)
 
-	sample = np.ndarray(shape=(n_slices, MelConverter.N_MEL_FREQS * spectogram_samples_per_slice))
+	sample = np.ndarray(shape=(n_slices, MelConverter.N_MEL_FREQS * spectrogram_samples_per_slice))
 
 	for i in range(n_slices):
-		sample[i, :] = mel_spectogram[:, (i * spectogram_samples_per_slice):((i + 1) * spectogram_samples_per_slice)].flatten()
+		sample[i, :] = mel_spectrogram[:, (i * spectrogram_samples_per_slice):((i + 1) * spectrogram_samples_per_slice)].flatten()
 
 	return sample
 
@@ -99,13 +99,13 @@ def preprocess_audio_signal_pair(source_file_path1, source_file_path2):
 	signal2 = AudioSignal.from_wav_file(source_file_path2)
 	mixed_signal = AudioMixer.mix([signal1, signal2])
 
-	x = get_mel_spectogram_slices(mixed_signal)
+	x = get_mel_spectrogram_slices(mixed_signal)
 
-	mel_spectogram_slices1 = get_mel_spectogram_slices(signal1)
-	mel_spectogram_slices2 = get_mel_spectogram_slices(signal2)
+	mel_spectrogram_slices1 = get_mel_spectrogram_slices(signal1)
+	mel_spectrogram_slices2 = get_mel_spectrogram_slices(signal2)
 
 	y = np.zeros(shape=x.shape)
-	y[mel_spectogram_slices1 > mel_spectogram_slices2] = 1
+	y[mel_spectrogram_slices1 > mel_spectrogram_slices2] = 1
 
 	return x, y, mixed_signal
 
@@ -114,17 +114,17 @@ def reconstruct_audio_signal(y, mixed_signal, separation_mask_threshold=0.5):
 	source_separation_mask = np.zeros(shape=y.shape)
 	source_separation_mask[y > separation_mask_threshold] = 1
 
-	source_mel_spectogram_slices = source_separation_mask * get_mel_spectogram_slices(mixed_signal)
-	slice_mel_spectograms = [
-		source_mel_spectogram_slices[i, :].reshape((MelConverter.N_MEL_FREQS, -1))
-		for i in range(source_mel_spectogram_slices.shape[0])
+	source_mel_spectrogram_slices = source_separation_mask * get_mel_spectrogram_slices(mixed_signal)
+	slice_mel_spectrograms = [
+		source_mel_spectrogram_slices[i, :].reshape((MelConverter.N_MEL_FREQS, -1))
+		for i in range(source_mel_spectrogram_slices.shape[0])
 	]
 
-	source_mel_spectogram = np.concatenate(slice_mel_spectograms, axis=1)
+	source_mel_spectrogram = np.concatenate(slice_mel_spectrograms, axis=1)
 
 	# TODO: maybe use the original phase of each frequency instead of using griffin-lim
 	mel_converter = MelConverter(mixed_signal.get_sample_rate())
-	return mel_converter.reconstruct_signal_from_mel_spectogram(source_mel_spectogram)
+	return mel_converter.reconstruct_signal_from_mel_spectrogram(source_mel_spectrogram)
 
 
 def preprocess_audio_data(source_file_pairs):
@@ -160,7 +160,7 @@ def train(args):
 	x_train, y_train = preprocess_audio_data(source_file_pairs)
 
 	separator = AudioSourceSeparator()
-	separator.init_model(spectogram_size=x_train.shape[1])
+	separator.init_model(spectrogram_size=x_train.shape[1])
 	separator.train(x_train, y_train)
 	separator.dump(args.model_cache, args.weights_cache)
 

@@ -8,7 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from mediaio.audio_io import AudioSignal, AudioMixer
-from dsp.spectogram import MelConverter
+from dsp.spectrogram import MelConverter
 
 
 def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir,
@@ -39,7 +39,7 @@ def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir,
 		mixed_signal = AudioMixer.mix([speaker_source_signal, noise_source_signal])
 
 		mel_converter = MelConverter(mixed_signal.get_sample_rate())
-		mixed_spectogram = mel_converter.signal_to_mel_spectogram(mixed_signal)
+		mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
 
 		speaker_file_name = os.path.splitext(os.path.basename(speaker_file_path))[0]
 		noise_file_name = os.path.splitext(os.path.basename(noise_file_path))[0]
@@ -49,19 +49,19 @@ def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir,
 			continue
 
 		predicted_speech_signal = AudioSignal.from_wav_file(speech_prediction_path[0])
-		predicted_speech_spectogram = mel_converter.signal_to_mel_spectogram(predicted_speech_signal)
+		predicted_speech_spectrogram = mel_converter.signal_to_mel_spectrogram(predicted_speech_signal)
 
-		if mixed_spectogram.shape[1] > predicted_speech_spectogram.shape[1]:
-			mixed_spectogram = mixed_spectogram[:, :predicted_speech_spectogram.shape[1]]
+		if mixed_spectrogram.shape[1] > predicted_speech_spectrogram.shape[1]:
+			mixed_spectrogram = mixed_spectrogram[:, :predicted_speech_spectrogram.shape[1]]
 		else:
-			predicted_speech_spectogram = predicted_speech_spectogram[:, :mixed_spectogram.shape[1]]
+			predicted_speech_spectrogram = predicted_speech_spectrogram[:, :mixed_spectrogram.shape[1]]
 
-		speech_enhancement_mask = np.zeros(shape=mixed_spectogram.shape)
-		speech_enhancement_mask[predicted_speech_spectogram > enhancement_threshold] = 1
+		speech_enhancement_mask = np.zeros(shape=mixed_spectrogram.shape)
+		speech_enhancement_mask[predicted_speech_spectrogram > enhancement_threshold] = 1
 
-		enhanced_speech_spectogram = mixed_spectogram * speech_enhancement_mask
+		enhanced_speech_spectrogram = mixed_spectrogram * speech_enhancement_mask
 
-		reconstructed_speech_signal = mel_converter.reconstruct_signal_from_mel_spectogram(enhanced_speech_spectogram)
+		reconstructed_speech_signal = mel_converter.reconstruct_signal_from_mel_spectrogram(enhanced_speech_spectrogram)
 
 		speech_enhancement_dir_path = os.path.join(enhancement_output_dir, speaker_file_name + "_" + noise_file_name)
 		os.mkdir(speech_enhancement_dir_path)
