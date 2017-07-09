@@ -7,99 +7,85 @@ import math
 import multiprocessing
 from datetime import datetime
 
-from keras.layers import Dense, Convolution2D, MaxPooling2D, BatchNormalization, Activation, Dropout, LeakyReLU, Flatten
+from keras.layers import Dense, Convolution2D, MaxPooling2D, Dropout, Flatten, BatchNormalization, Activation, LeakyReLU
 from keras.models import Sequential, model_from_json
 from keras import optimizers
 
 import numpy as np
 import h5py
-import cv2
 
 from mediaio.video_io import VideoFileReader
 from mediaio.audio_io import AudioSignal
 from dsp.spectrogram import MelConverter
+from face_detection import FaceDetector
 
 
-class VisualSpeechPredictor:
+class VideoToSpeechNet:
 
-	def __init__(self):
-		pass
+	def __init__(self, model):
+		self._model = model
+
+	@staticmethod
+	def build(video_shape, audio_spectrogram_size):
+		model = Sequential()
+
+		model.add(Convolution2D(32, (3, 3), padding="same", kernel_initializer="he_normal", input_shape=video_shape))
+		model.add(BatchNormalization())
+		model.add(LeakyReLU())
+
+		model.add(Convolution2D(32, (3, 3), padding="same", kernel_initializer="he_normal"))
+		model.add(BatchNormalization())
+		model.add(LeakyReLU())
+		model.add(MaxPooling2D(pool_size=(2, 2)))
+		model.add(Dropout(0.2))
+
+		model.add(Convolution2D(64, (3, 3), padding="same", kernel_initializer="he_normal"))
+		model.add(BatchNormalization())
+		model.add(LeakyReLU())
+
+		model.add(Convolution2D(64, (3, 3), padding="same", kernel_initializer="he_normal"))
+		model.add(BatchNormalization())
+		model.add(LeakyReLU())
+		model.add(MaxPooling2D(pool_size=(2, 2)))
+		model.add(Dropout(0.2))
+
+		model.add(Convolution2D(128, (3, 3), padding="same", kernel_initializer="he_normal"))
+		model.add(BatchNormalization())
+		model.add(LeakyReLU())
+
+		model.add(Convolution2D(128, (3, 3), padding="same", kernel_initializer="he_normal"))
+		model.add(BatchNormalization())
+		model.add(LeakyReLU())
+		model.add(MaxPooling2D(pool_size=(2, 2)))
+		model.add(Dropout(0.2))
+
+		model.add(Flatten())
+
+		model.add(Dense(units=512))
+		model.add(BatchNormalization())
+		model.add(Activation("relu"))
+		model.add(Dropout(0.2))
+
+		model.add(Dense(units=512))
+		model.add(BatchNormalization())
+		model.add(Activation("relu"))
+		model.add(Dropout(0.2))
+
+		model.add(Dense(units=audio_spectrogram_size))
+
+		optimizer = optimizers.adam(lr=0.01, decay=1e-6)
+		model.compile(loss="mean_squared_error", optimizer=optimizer)
+
+		return VideoToSpeechNet(model)
 
 	@staticmethod
 	def load(model_cache_path, weights_cache_path):
-		predictor = VisualSpeechPredictor()
-
 		with open(model_cache_path, "r") as model_fd:
-			predictor._model = model_from_json(model_fd.read())
+			model = model_from_json(model_fd.read())
 
-		predictor._model.load_weights(weights_cache_path)
+		model.load_weights(weights_cache_path)
 
-		return predictor
-
-	def init_model(self, video_shape, audio_spectrogram_size):
-		self._model = Sequential()
-
-		self._model.add(Convolution2D(32, (3, 3), padding="same", kernel_initializer="he_normal", input_shape=video_shape))
-		self._model.add(BatchNormalization())
-		self._model.add(LeakyReLU())
-		# self._model.add(MaxPooling2D(pool_size=(2, 2)))
-
-		# self._model.add(Convolution2D(32, (3, 3), padding="same", kernel_initializer="he_normal"))
-		# self._model.add(BatchNormalization())
-		# self._model.add(LeakyReLU())
-
-		self._model.add(Convolution2D(32, (3, 3), padding="same", kernel_initializer="he_normal"))
-		self._model.add(BatchNormalization())
-		self._model.add(LeakyReLU())
-		self._model.add(MaxPooling2D(pool_size=(2, 2)))
-		self._model.add(Dropout(0.2))
-
-		self._model.add(Convolution2D(64, (3, 3), padding="same", kernel_initializer="he_normal"))
-		self._model.add(BatchNormalization())
-		self._model.add(LeakyReLU())
-
-		self._model.add(Convolution2D(64, (3, 3), padding="same", kernel_initializer="he_normal"))
-		self._model.add(BatchNormalization())
-		self._model.add(LeakyReLU())
-		self._model.add(MaxPooling2D(pool_size=(2, 2)))
-		self._model.add(Dropout(0.2))
-
-		self._model.add(Convolution2D(128, (3, 3), padding="same", kernel_initializer="he_normal"))
-		self._model.add(BatchNormalization())
-		self._model.add(LeakyReLU())
-
-		self._model.add(Convolution2D(128, (3, 3), padding="same", kernel_initializer="he_normal"))
-		self._model.add(BatchNormalization())
-		self._model.add(LeakyReLU())
-		self._model.add(MaxPooling2D(pool_size=(2, 2)))
-		self._model.add(Dropout(0.2))
-
-		# self._model.add(Convolution2D(128, (3, 3), padding="same", kernel_initializer="he_normal"))
-		# self._model.add(BatchNormalization())
-		# self._model.add(LeakyReLU())
-		#
-		# self._model.add(Convolution2D(128, (3, 3), padding="same", kernel_initializer="he_normal"))
-		# self._model.add(BatchNormalization())
-		# self._model.add(Activation("tanh"))
-		# self._model.add(MaxPooling2D(pool_size=(2, 2)))
-		# self._model.add(Dropout(0.2))
-
-		self._model.add(Flatten())
-
-		self._model.add(Dense(units=512))
-		self._model.add(BatchNormalization())
-		self._model.add(Activation("relu"))
-		self._model.add(Dropout(0.2))
-
-		self._model.add(Dense(units=512))
-		self._model.add(BatchNormalization())
-		self._model.add(Activation("relu"))
-		self._model.add(Dropout(0.2))
-
-		self._model.add(Dense(units=audio_spectrogram_size))
-
-		optimizer = optimizers.adam(lr=0.01, decay=1e-6)
-		self._model.compile(loss='mean_squared_error', optimizer=optimizer)
+		return VideoToSpeechNet(model)
 
 	def train(self, x, y):
 		self._model.fit(x, y, batch_size=32, epochs=100, verbose=1)
@@ -119,42 +105,34 @@ class VisualSpeechPredictor:
 		self._model.save_weights(weights_cache_path)
 
 
-def preprocess_video_sample(video_file_path, slice_duration_ms=330):
+def preprocess_video_sample(video_file_path, slice_duration_ms=330, mouth_height=50, mouth_width=100):
 	print("preprocessing %s" % video_file_path)
 
-	face_detector = cv2.CascadeClassifier(
-		os.path.join(os.path.dirname(__file__), "res", "haarcascade_frontalface_alt.xml")
-	)
+	face_detector = FaceDetector()
 
 	with VideoFileReader(video_file_path) as reader:
 		frames = reader.read_all_frames(convert_to_gray_scale=True)
+
+		mouth_cropped_frames = np.zeros(shape=(reader.get_frame_count(), mouth_height, mouth_width), dtype=np.float32)
+		for i in range(reader.get_frame_count()):
+			mouth_cropped_frames[i, :] = face_detector.crop_mouth(frames[i, :], bounding_box_shape=(mouth_width, mouth_height))
+
+		# fit to tensorflow channel_last data format: (conv_dim1, conv_dim2, conv_dim3, channels)
+		# mouth_cropped_frames = np.expand_dims(mouth_cropped_frames, axis=3)
+		mouth_cropped_frames = mouth_cropped_frames.transpose((1, 2, 0))
+
+		# mouth_cropped_frames /= 255
+		# mouth_cropped_frames -= np.mean(mouth_cropped_frames)
+
 		frames_per_slice = (float(slice_duration_ms) / 1000) * reader.get_frame_rate()
 		n_slices = int(float(reader.get_frame_count()) / frames_per_slice)
 
-	face_cropped_frames = np.zeros(shape=(75, 128, 128), dtype=np.float32)
-	for i in range(frames.shape[0]):
-		faces = face_detector.detectMultiScale(frames[i, :], minSize=(200, 200), maxSize=(400, 400))
-		if len(faces) == 1:
-			(face_x, face_y, face_width, face_height) = faces[0]
-			face = frames[i, face_y: (face_y + face_height), face_x: (face_x + face_width)]
+		slices = [
+			mouth_cropped_frames[:, :, int(i * frames_per_slice) : int(math.ceil((i + 1) * frames_per_slice))]
+			for i in range(n_slices)
+		]
 
-			face_cropped_frames[i, :] = cv2.resize(face, (128, 128))
-
-		else:
-			raise Exception("failed to locate face")
-
-	# fit to tensorflow channel_last data format
-	face_cropped_frames = face_cropped_frames.transpose((1, 2, 0))
-
-	face_cropped_frames /= 255
-	face_cropped_frames -= np.mean(face_cropped_frames)
-
-	slices = [
-		face_cropped_frames[:, :, int(i * frames_per_slice) : int(math.ceil((i + 1) * frames_per_slice))]
-		for i in range(n_slices)
-	]
-
-	return np.stack(slices)
+		return np.stack(slices)
 
 
 def try_preprocess_video_sample(video_file_path):
@@ -246,33 +224,32 @@ def list_speakers(args):
 
 def train(args):
 	speaker_ids = list_speakers(args)
-	video_file_paths = list_video_files(args.dataset_dir, speaker_ids, max_files=3000)
+	video_file_paths = list_video_files(args.dataset_dir, speaker_ids, max_files=1000)
 
 	x, y = preprocess_data(video_file_paths)
 
-	predictor = VisualSpeechPredictor()
-	predictor.init_model(video_shape=x.shape[1:], audio_spectrogram_size=y.shape[1])
-	predictor.train(x, y)
-	predictor.dump(args.model_cache, args.weights_cache)
+	network = VideoToSpeechNet.build(video_shape=x.shape[1:], audio_spectrogram_size=y.shape[1])
+	network.train(x, y)
+	network.dump(args.model_cache, args.weights_cache)
 
 
 def predict(args):
 	speaker_ids = list_speakers(args)
 
-	predictor = VisualSpeechPredictor.load(args.model_cache, args.weights_cache)
-
 	prediction_output_dir = os.path.join(args.prediction_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
 	os.mkdir(prediction_output_dir)
+
+	network = VideoToSpeechNet.load(args.model_cache, args.weights_cache)
 
 	for speaker_id in speaker_ids:
 		speaker_prediction_dir = os.path.join(prediction_output_dir, speaker_id)
 		os.mkdir(speaker_prediction_dir)
 
-		video_file_paths = list_video_files(args.dataset_dir, [speaker_id], max_files=20)
-		for video_file_path in video_file_paths:
+		test_video_file_paths = list_video_files(args.dataset_dir, [speaker_id], max_files=10)
+		for video_file_path in test_video_file_paths:
 			try:
 				x = preprocess_video_sample(video_file_path)
-				y_predicted = predictor.predict(x)
+				y_predicted = network.predict(x)
 
 				sample_name = os.path.splitext(os.path.basename(video_file_path))[0]
 
@@ -303,6 +280,7 @@ def main():
 	predict_parser.add_argument("weights_cache", type=str)
 	predict_parser.add_argument("prediction_output_dir", type=str)
 	predict_parser.add_argument("--speakers", nargs="+", type=str)
+	predict_parser.add_argument("--ignored_speakers", nargs="+", type=str)
 	predict_parser.set_defaults(func=predict)
 
 	args = parser.parse_args()
