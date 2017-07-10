@@ -104,8 +104,9 @@ def get_preprocessed_samples(preprocessed_dir, speaker_ids, max_speaker_samples=
 
 	video_samples, audio_samples = np.concatenate(video_samples), np.concatenate(audio_samples)
 
-	np.random.shuffle(video_samples)
-	np.random.shuffle(audio_samples)
+	permutation = np.random.permutation(video_samples.shape[0])
+	video_samples = video_samples[permutation]
+	audio_samples = audio_samples[permutation]
 
 	return video_samples[:max_total_samples], audio_samples[:max_total_samples]
 
