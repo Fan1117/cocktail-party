@@ -1,24 +1,23 @@
 import argparse
-import os
 import glob
-import random
-import shutil
 import math
 import multiprocessing
+import os
+import random
+import shutil
 from datetime import datetime
 
+import numpy as np
+
+from keras import optimizers
 from keras.layers import Dense, Convolution3D, MaxPooling3D, ZeroPadding3D, Dropout, Flatten, BatchNormalization, LeakyReLU
 from keras.layers.wrappers import TimeDistributed
 from keras.models import Sequential, model_from_json
-from keras import optimizers
 
-import numpy as np
-import h5py
-
-from mediaio.video_io import VideoFileReader
-from mediaio.audio_io import AudioSignal
 from dsp.spectrogram import MelConverter
-from face_detection import FaceDetector
+from facedetection.face_detection import FaceDetector
+from mediaio.audio_io import AudioSignal
+from mediaio.video_io import VideoFileReader
 
 
 class VideoToSpeechNet:

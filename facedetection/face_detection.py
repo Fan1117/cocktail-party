@@ -13,7 +13,7 @@ class FaceDetector:
 	def __init__(self):
 		self._detector = dlib.get_frontal_face_detector()
 		self._landmark_predictor = dlib.shape_predictor(
-			os.path.join(os.path.dirname(__file__), "res", "shape_predictor_68_face_landmarks.dat")
+			os.path.join(os.path.dirname(__file__), "shape_predictor_68_face_landmarks.dat")
 		)
 
 	def detect_face(self, image, bounding_box_shape=None):
