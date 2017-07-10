@@ -7,7 +7,8 @@ import math
 import multiprocessing
 from datetime import datetime
 
-from keras.layers import Dense, Convolution2D, MaxPooling2D, Dropout, Flatten, BatchNormalization, Activation, LeakyReLU
+from keras.layers import Dense, Convolution3D, MaxPooling3D, ZeroPadding3D, Dropout, Flatten, BatchNormalization, LeakyReLU
+from keras.layers.wrappers import TimeDistributed
 from keras.models import Sequential, model_from_json
 from keras import optimizers
 
@@ -29,49 +30,54 @@ class VideoToSpeechNet:
 	def build(video_shape, audio_spectrogram_size):
 		model = Sequential()
 
-		model.add(Convolution2D(32, (3, 3), padding="same", kernel_initializer="he_normal", input_shape=video_shape))
+		model.add(ZeroPadding3D(padding=(1, 2, 2), name='zero1', input_shape=video_shape))
+		model.add(Convolution3D(32, (3, 5, 5), strides=(1, 2, 2), kernel_initializer='he_normal', name='conv1'))
 		model.add(BatchNormalization())
 		model.add(LeakyReLU())
+		model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2), name='max1'))
+		model.add(Dropout(0.5))
 
-		model.add(Convolution2D(32, (3, 3), padding="same", kernel_initializer="he_normal"))
+		model.add(ZeroPadding3D(padding=(1, 2, 2), name='zero2'))
+		model.add(Convolution3D(64, (3, 5, 5), strides=(1, 1, 1), kernel_initializer='he_normal', name='conv2'))
 		model.add(BatchNormalization())
 		model.add(LeakyReLU())
-		model.add(MaxPooling2D(pool_size=(2, 2)))
+		model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2), name='max2'))
+		model.add(Dropout(0.5))
+
+		model.add(ZeroPadding3D(padding=(1, 1, 1), name='zero3'))
+		model.add(Convolution3D(96, (3, 3, 3), strides=(1, 1, 1), kernel_initializer='he_normal', name='conv3'))
+		model.add(BatchNormalization())
+		model.add(LeakyReLU())
+		model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2), name='max3'))
+		model.add(Dropout(0.5))
+
+		model.add(TimeDistributed(Flatten()))
+
+		model.add(Dense(256, kernel_initializer='he_normal', name='dense0'))
+		model.add(BatchNormalization())
+		model.add(LeakyReLU())
 		model.add(Dropout(0.2))
 
-		model.add(Convolution2D(64, (3, 3), padding="same", kernel_initializer="he_normal"))
+		model.add(Dense(256, kernel_initializer='he_normal', name='dense1'))
 		model.add(BatchNormalization())
 		model.add(LeakyReLU())
-
-		model.add(Convolution2D(64, (3, 3), padding="same", kernel_initializer="he_normal"))
-		model.add(BatchNormalization())
-		model.add(LeakyReLU())
-		model.add(MaxPooling2D(pool_size=(2, 2)))
-		model.add(Dropout(0.2))
-
-		model.add(Convolution2D(128, (3, 3), padding="same", kernel_initializer="he_normal"))
-		model.add(BatchNormalization())
-		model.add(LeakyReLU())
-
-		model.add(Convolution2D(128, (3, 3), padding="same", kernel_initializer="he_normal"))
-		model.add(BatchNormalization())
-		model.add(LeakyReLU())
-		model.add(MaxPooling2D(pool_size=(2, 2)))
 		model.add(Dropout(0.2))
 
 		model.add(Flatten())
 
-		model.add(Dense(units=512))
+		model.add(Dense(512, kernel_initializer='he_normal', name='dense2'))
 		model.add(BatchNormalization())
-		model.add(Activation("relu"))
+		model.add(LeakyReLU())
 		model.add(Dropout(0.2))
 
-		model.add(Dense(units=512))
+		model.add(Dense(512, kernel_initializer='he_normal', name='dense3'))
 		model.add(BatchNormalization())
-		model.add(Activation("relu"))
+		model.add(LeakyReLU())
 		model.add(Dropout(0.2))
 
-		model.add(Dense(units=audio_spectrogram_size))
+		model.add(Dense(audio_spectrogram_size, name='output'))
+
+		model.summary()
 
 		optimizer = optimizers.adam(lr=0.01, decay=1e-6)
 		model.compile(loss="mean_squared_error", optimizer=optimizer)
@@ -88,7 +94,7 @@ class VideoToSpeechNet:
 		return VideoToSpeechNet(model)
 
 	def train(self, x, y):
-		self._model.fit(x, y, batch_size=32, epochs=100, verbose=1)
+		self._model.fit(x, y, batch_size=32, validation_split=0.05, epochs=120, verbose=1)
 
 	def evaluate(self, x, y):
 		score = self._model.evaluate(x, y, verbose=1)
@@ -111,24 +117,17 @@ def preprocess_video_sample(video_file_path, slice_duration_ms=330, mouth_height
 	face_detector = FaceDetector()
 
 	with VideoFileReader(video_file_path) as reader:
-		frames = reader.read_all_frames(convert_to_gray_scale=True)
+		frames = reader.read_all_frames()
 
-		mouth_cropped_frames = np.zeros(shape=(reader.get_frame_count(), mouth_height, mouth_width), dtype=np.float32)
+		mouth_cropped_frames = np.zeros(shape=(reader.get_frame_count(), mouth_height, mouth_width, 3), dtype=np.float32)
 		for i in range(reader.get_frame_count()):
 			mouth_cropped_frames[i, :] = face_detector.crop_mouth(frames[i, :], bounding_box_shape=(mouth_width, mouth_height))
-
-		# fit to tensorflow channel_last data format: (conv_dim1, conv_dim2, conv_dim3, channels)
-		# mouth_cropped_frames = np.expand_dims(mouth_cropped_frames, axis=3)
-		mouth_cropped_frames = mouth_cropped_frames.transpose((1, 2, 0))
-
-		# mouth_cropped_frames /= 255
-		# mouth_cropped_frames -= np.mean(mouth_cropped_frames)
 
 		frames_per_slice = (float(slice_duration_ms) / 1000) * reader.get_frame_rate()
 		n_slices = int(float(reader.get_frame_count()) / frames_per_slice)
 
 		slices = [
-			mouth_cropped_frames[:, :, int(i * frames_per_slice) : int(math.ceil((i + 1) * frames_per_slice))]
+			mouth_cropped_frames[int(i * frames_per_slice) : int(math.ceil((i + 1) * frames_per_slice))]
 			for i in range(n_slices)
 		]
 
@@ -224,9 +223,12 @@ def list_speakers(args):
 
 def train(args):
 	speaker_ids = list_speakers(args)
-	video_file_paths = list_video_files(args.dataset_dir, speaker_ids, max_files=1000)
+	video_file_paths = list_video_files(args.dataset_dir, speaker_ids, max_files=15000)
 
 	x, y = preprocess_data(video_file_paths)
+
+	x /= 255
+	x -= np.mean(x)
 
 	network = VideoToSpeechNet.build(video_shape=x.shape[1:], audio_spectrogram_size=y.shape[1])
 	network.train(x, y)
@@ -249,6 +251,10 @@ def predict(args):
 		for video_file_path in test_video_file_paths:
 			try:
 				x = preprocess_video_sample(video_file_path)
+
+				x /= 255
+				x -= np.mean(x)
+
 				y_predicted = network.predict(x)
 
 				sample_name = os.path.splitext(os.path.basename(video_file_path))[0]
