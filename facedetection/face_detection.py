@@ -25,6 +25,11 @@ class FaceDetector:
 
 		return bounding_box
 
+	def crop_face(self, image, bounding_box_shape=None):
+		bounding_box = self.detect_face(image, bounding_box_shape)
+
+		return self._crop(image, bounding_box)
+
 	def detect_mouth(self, image, bounding_box_shape=None):
 		landmarks = self._detect_landmarks(image, FaceDetector.MOUTH_LANDMARK_IDS)
 
@@ -40,10 +45,7 @@ class FaceDetector:
 	def crop_mouth(self, image, bounding_box_shape=None):
 		bounding_box = self.detect_mouth(image, bounding_box_shape)
 
-		return image[
-			bounding_box.top : bounding_box.top + bounding_box.get_height(),
-			bounding_box.left : bounding_box.left + bounding_box.get_width()
-		]
+		return self._crop(image, bounding_box)
 
 	def _detect_landmarks(self, image, landmark_ids):
 		detection = self._detect_face(image)
@@ -58,6 +60,13 @@ class FaceDetector:
 			raise Exception("frame contains %d faces" % len(detections))
 
 		return detections[0]
+
+	@staticmethod
+	def _crop(image, bounding_box):
+		return image[
+			bounding_box.top: bounding_box.top + bounding_box.get_height(),
+			bounding_box.left: bounding_box.left + bounding_box.get_width()
+		]
 
 
 class BoundingBox:
