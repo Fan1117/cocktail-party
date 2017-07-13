@@ -15,15 +15,13 @@ def preprocess(args):
 	speaker_ids = list_speakers(args)
 
 	for speaker_id in speaker_ids:
-		video_file_paths = list_video_files(args.dataset_dir, [speaker_id])
+		video_file_paths = list_video_files(args.dataset_dir, [speaker_id], max_files=500)
 
 		video_samples, audio_samples = data_processor.preprocess_data(video_file_paths)
 		video_samples = data_processor.normalize_video_samples(video_samples)
 
 		preprocessed_speaker_path = os.path.join(args.preprocessed_dir, speaker_id)
 		np.savez(preprocessed_speaker_path, video_samples=video_samples, audio_samples=audio_samples)
-
-		del video_samples, audio_samples
 
 
 def train(args):
@@ -44,13 +42,18 @@ def predict(args):
 	prediction_output_dir = os.path.join(args.prediction_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
 	os.mkdir(prediction_output_dir)
 
-	network = VideoToSpeechNet.load(args.model_cache, args.weights_cache)
-
 	for speaker_id in speaker_ids:
+		video_samples, audio_samples = get_preprocessed_samples(
+			args.preprocessed_dir, [speaker_id], max_speaker_samples=500
+		)
+
+		network = VideoToSpeechNet.load(args.model_cache, args.weights_cache)
+		network.fine_tune(video_samples, audio_samples)
+
 		speaker_prediction_dir = os.path.join(prediction_output_dir, speaker_id)
 		os.mkdir(speaker_prediction_dir)
 
-		video_file_paths = list_video_files(args.dataset_dir, [speaker_id], max_files=10)
+		video_file_paths = list_video_files(args.dataset_dir, [speaker_id])
 		for video_file_path in video_file_paths:
 			try:
 				video_sample = data_processor.normalize_video_samples(
@@ -132,6 +135,7 @@ def main():
 
 	predict_parser = action_parsers.add_parser("predict")
 	predict_parser.add_argument("dataset_dir", type=str)
+	predict_parser.add_argument("preprocessed_dir", type=str)
 	predict_parser.add_argument("model_cache", type=str)
 	predict_parser.add_argument("weights_cache", type=str)
 	predict_parser.add_argument("prediction_output_dir", type=str)
