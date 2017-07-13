@@ -19,7 +19,7 @@ def softmax(x):
 	return [i / x_exp_sum for i in x_exp]
 
 
-def separate(dataset_dir, speech_prediction_dir, separation_output_dir, speakers):
+def separate(dataset_dir, speech_prediction_dir, separation_output_dir, speakers, softmax_masking=True):
 	source_file_pairs = list_audio_source_file_pairs(dataset_dir, speakers, max_pairs=10)
 
 	separation_output_dir = os.path.join(separation_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
@@ -41,6 +41,7 @@ def separate(dataset_dir, speech_prediction_dir, separation_output_dir, speakers
 		speech_prediction_path2 = glob.glob(os.path.join(speech_prediction_dir, speakers[1], source_name2 + ".wav"))
 
 		if len(speech_prediction_path1) != 1 or len(speech_prediction_path2) != 1:
+			print("failed to find predictions. skipping")
 			continue
 
 		speech_signal1 = AudioSignal.from_wav_file(speech_prediction_path1[0])
@@ -58,13 +59,17 @@ def separate(dataset_dir, speech_prediction_dir, separation_output_dir, speakers
 		mask1 = np.zeros(shape=mixed_spectrogram.shape)
 		mask2 = np.zeros(shape=mixed_spectrogram.shape)
 
-		for i in range(mixed_spectrogram.shape[0]):
-			for j in range(mixed_spectrogram.shape[1]):
-				magnitudes = [spectrogram1[i, j], spectrogram2[i, j]]
-				weights = softmax(magnitudes)
+		if softmax_masking:
+			for i in range(mixed_spectrogram.shape[0]):
+				for j in range(mixed_spectrogram.shape[1]):
+					magnitudes = [spectrogram1[i, j], spectrogram2[i, j]]
+					weights = softmax(magnitudes)
 
-				mask1[i, j] = weights[0]
-				mask2[i, j] = weights[1]
+					mask1[i, j] = weights[0]
+					mask2[i, j] = weights[1]
+		else:
+			mask1[spectrogram1 - spectrogram2 > 1] = 1
+			mask2[spectrogram2 - spectrogram1 > 1] = 1
 
 		separated_spectrogram1 = mixed_spectrogram * mask1
 		separated_spectrogram2 = mixed_spectrogram * mask2
