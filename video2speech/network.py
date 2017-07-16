@@ -39,24 +39,24 @@ class VideoToSpeechNet:
 		model.add(Dense(1024, kernel_initializer='he_normal', name='dense1'))
 		model.add(BatchNormalization())
 		model.add(LeakyReLU())
-		model.add(Dropout(0.2))
+		model.add(Dropout(0.25))
 
 		model.add(Dense(1024, kernel_initializer='he_normal', name='dense2'))
 		model.add(BatchNormalization())
 		model.add(LeakyReLU())
-		model.add(Dropout(0.2))
+		model.add(Dropout(0.25))
 
 		model.add(Flatten())
 
 		model.add(Dense(2048, kernel_initializer='he_normal', name='dense3'))
 		model.add(BatchNormalization())
 		model.add(LeakyReLU())
-		model.add(Dropout(0.2))
+		model.add(Dropout(0.25))
 
 		model.add(Dense(2048, kernel_initializer='he_normal', name='dense4'))
 		model.add(BatchNormalization())
 		model.add(LeakyReLU())
-		model.add(Dropout(0.2))
+		model.add(Dropout(0.25))
 
 		model.add(Dense(audio_spectrogram_size, name='output'))
 
@@ -87,7 +87,7 @@ class VideoToSpeechNet:
 
 		self._model.summary()
 
-		self.train(x, y, learning_rate=0.001, epochs=50)
+		self.train(x, y, epochs=100)
 
 	def predict(self, x):
 		y = self._model.predict(x)
