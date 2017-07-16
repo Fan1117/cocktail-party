@@ -96,10 +96,9 @@ def preprocess_data(video_file_paths):
 	return np.concatenate(video_samples), np.concatenate(audio_samples)
 
 
-#TODO: use image specific normalizations
+#TODO: use image-specific normalizations (channelwise?)
 def normalize_video_samples(video_samples):
 	video_samples /= 255
 	video_samples -= np.mean(video_samples)
-	video_samples /= np.std(video_samples)
 
 	return video_samples
