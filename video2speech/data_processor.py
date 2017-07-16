@@ -76,18 +76,12 @@ def reconstruct_audio_signal(audio_sample, sample_rate):
 	return mel_converter.reconstruct_signal_from_mel_spectrogram(full_mel_spectrogram)
 
 
-def video_to_audio_path(video_file_path):
-	return video_file_path.replace("video", "audio").replace(".mpg", ".wav")
-
-
-def preprocess_data(video_file_paths):
+def preprocess_data(data):
 	print("reading dataset...")
 
-	audio_file_paths = [video_to_audio_path(f) for f in video_file_paths]
-
 	thread_pool = multiprocessing.Pool(8)
-	video_samples = thread_pool.map(try_preprocess_video_sample, video_file_paths)
-	audio_samples = thread_pool.map(preprocess_audio_sample, audio_file_paths)
+	video_samples = thread_pool.map(try_preprocess_video_sample, data.video_paths())
+	audio_samples = thread_pool.map(preprocess_audio_sample, data.audio_paths())
 
 	invalid_sample_ids = [i for i, sample in enumerate(video_samples) if sample is None]
 	video_samples = [sample for i, sample in enumerate(video_samples) if i not in invalid_sample_ids]

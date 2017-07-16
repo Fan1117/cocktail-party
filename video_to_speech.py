@@ -1,23 +1,23 @@
 import argparse
-import glob
 import os
 import shutil
-import random
 from datetime import datetime
 
 import numpy as np
 
 from video2speech import data_processor
 from video2speech.network import VideoToSpeechNet
+from dataset import AudioVisualDataset
 
 
 def preprocess(args):
 	speaker_ids = list_speakers(args)
+	dataset = AudioVisualDataset(args.dataset_dir)
 
 	for speaker_id in speaker_ids:
-		video_file_paths = list_video_files(args.dataset_dir, [speaker_id], max_files=500)
+		data_subset = dataset.subset([speaker_id], max_files=500, shuffle=True)
 
-		video_samples, audio_samples = data_processor.preprocess_data(video_file_paths)
+		video_samples, audio_samples = data_processor.preprocess_data(data_subset)
 		video_samples = data_processor.normalize_video_samples(video_samples)
 
 		preprocessed_speaker_path = os.path.join(args.preprocessed_dir, speaker_id)
@@ -27,7 +27,7 @@ def preprocess(args):
 def train(args):
 	speaker_ids = list_speakers(args)
 
-	video_samples, audio_samples = get_preprocessed_samples(
+	video_samples, audio_samples = load_preprocessed_samples(
 		args.preprocessed_dir, speaker_ids, max_speaker_samples=5000, max_total_samples=100000
 	)
 
@@ -38,12 +38,13 @@ def train(args):
 
 def predict(args):
 	speaker_ids = list_speakers(args)
+	dataset = AudioVisualDataset(args.dataset_dir)
 
 	prediction_output_dir = os.path.join(args.prediction_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
 	os.mkdir(prediction_output_dir)
 
 	for speaker_id in speaker_ids:
-		video_samples, audio_samples = get_preprocessed_samples(
+		video_samples, audio_samples = load_preprocessed_samples(
 			args.preprocessed_dir, [speaker_id], max_speaker_samples=500
 		)
 
@@ -53,7 +54,7 @@ def predict(args):
 		speaker_prediction_dir = os.path.join(prediction_output_dir, speaker_id)
 		os.mkdir(speaker_prediction_dir)
 
-		video_file_paths = list_video_files(args.dataset_dir, [speaker_id])
+		video_file_paths = dataset.subset([speaker_id]).video_paths()
 		for video_file_path in video_file_paths:
 			try:
 				video_sample = data_processor.normalize_video_samples(
@@ -75,7 +76,8 @@ def predict(args):
 
 def list_speakers(args):
 	if args.speakers is None:
-		speaker_ids = os.listdir(args.dataset_dir)
+		dataset = AudioVisualDataset(args.dataset_dir)
+		speaker_ids = dataset.list_speakers()
 	else:
 		speaker_ids = args.speakers
 
@@ -86,17 +88,7 @@ def list_speakers(args):
 	return speaker_ids
 
 
-def list_video_files(dataset_dir, speaker_ids, max_files=None):
-	video_file_paths = []
-
-	for speaker_id in speaker_ids:
-		video_file_paths.extend(glob.glob(os.path.join(dataset_dir, speaker_id, "video", "*.mpg")))
-
-	random.shuffle(video_file_paths)
-	return video_file_paths[:max_files]
-
-
-def get_preprocessed_samples(preprocessed_dir, speaker_ids, max_speaker_samples=None, max_total_samples=None):
+def load_preprocessed_samples(preprocessed_dir, speaker_ids, max_speaker_samples=None, max_total_samples=None):
 	video_samples = []
 	audio_samples = []
 
