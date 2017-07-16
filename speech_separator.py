@@ -9,7 +9,7 @@ import numpy as np
 
 from mediaio.audio_io import AudioSignal, AudioMixer
 from dsp.spectrogram import MelConverter
-from audio_separator import list_audio_source_file_pairs
+from dataset import AudioVisualDataset
 
 
 def softmax(x):
@@ -20,73 +20,72 @@ def softmax(x):
 
 
 def separate(dataset_dir, speech_prediction_dir, separation_output_dir, speakers, softmax_masking=True):
-	source_file_pairs = list_audio_source_file_pairs(dataset_dir, speakers, max_pairs=10)
+	dataset = AudioVisualDataset(dataset_dir)
+
+	subsets = [dataset.subset([speaker_id], max_files=20, shuffle=True) for speaker_id in speakers]
+	paired_sources = zip(*[subset.audio_paths() for subset in subsets])
 
 	separation_output_dir = os.path.join(separation_output_dir, '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.now()))
 	os.mkdir(separation_output_dir)
 
-	for source_file_path1, source_file_path2 in source_file_pairs:
-		print("predicting mix of %s, %s" % (source_file_path1, source_file_path2))
-		source_signal1 = AudioSignal.from_wav_file(source_file_path1)
-		source_signal2 = AudioSignal.from_wav_file(source_file_path2)
-		mixed_signal = AudioMixer.mix([source_signal1, source_signal2])
+	for source_file_paths in paired_sources:
+		try:
+			print("separating mixture of %s" % str(source_file_paths))
 
-		mel_converter = MelConverter(mixed_signal.get_sample_rate())
-		mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
+			source_signals = [AudioSignal.from_wav_file(f) for f in source_file_paths]
+			mixed_signal = AudioMixer.mix(source_signals)
 
-		source_name1 = os.path.splitext(os.path.basename(source_file_path1))[0]
-		source_name2 = os.path.splitext(os.path.basename(source_file_path2))[0]
+			mel_converter = MelConverter(mixed_signal.get_sample_rate())
+			mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
 
-		speech_prediction_path1 = glob.glob(os.path.join(speech_prediction_dir, speakers[0], source_name1 + ".wav"))
-		speech_prediction_path2 = glob.glob(os.path.join(speech_prediction_dir, speakers[1], source_name2 + ".wav"))
+			source_names = [os.path.splitext(os.path.basename(f))[0] for f in source_file_paths]
+			speech_prediction_paths = [
+				glob.glob(os.path.join(speech_prediction_dir, speakers[i], source_name + ".wav"))[0]
+				for i, source_name in enumerate(source_names)
+			]
 
-		if len(speech_prediction_path1) != 1 or len(speech_prediction_path2) != 1:
-			print("failed to find predictions. skipping")
-			continue
+			speech_signals = [AudioSignal.from_wav_file(f) for f in speech_prediction_paths]
+			speech_spectrograms = [mel_converter.signal_to_mel_spectrogram(signal) for signal in speech_signals]
 
-		speech_signal1 = AudioSignal.from_wav_file(speech_prediction_path1[0])
-		speech_signal2 = AudioSignal.from_wav_file(speech_prediction_path2[0])
+			if mixed_spectrogram.shape[1] > speech_spectrograms[0].shape[1]:
+				mixed_spectrogram = mixed_spectrogram[:, :speech_spectrograms[0].shape[1]]
+			else:
+				speech_spectrograms = [spectrogram[:, :mixed_spectrogram.shape[1]] for spectrogram in speech_spectrograms]
 
-		spectrogram1 = mel_converter.signal_to_mel_spectrogram(speech_signal1)
-		spectrogram2 = mel_converter.signal_to_mel_spectrogram(speech_signal2)
+			masks = [np.zeros(shape=mixed_spectrogram.shape) for _ in range(len(speakers))]
 
-		if mixed_spectrogram.shape[1] > spectrogram1.shape[1]:
-			mixed_spectrogram = mixed_spectrogram[:, :spectrogram1.shape[1]]
-		else:
-			spectrogram1 = spectrogram1[:, :mixed_spectrogram.shape[1]]
-			spectrogram2 = spectrogram2[:, :mixed_spectrogram.shape[1]]
-
-		mask1 = np.zeros(shape=mixed_spectrogram.shape)
-		mask2 = np.zeros(shape=mixed_spectrogram.shape)
-
-		if softmax_masking:
 			for i in range(mixed_spectrogram.shape[0]):
 				for j in range(mixed_spectrogram.shape[1]):
-					magnitudes = [spectrogram1[i, j], spectrogram2[i, j]]
-					weights = softmax(magnitudes)
+					magnitudes = [spectrogram[i, j] for spectrogram in speech_spectrograms]
 
-					mask1[i, j] = weights[0]
-					mask2[i, j] = weights[1]
-		else:
-			mask1[spectrogram1 - spectrogram2 > 1] = 1
-			mask2[spectrogram2 - spectrogram1 > 1] = 1
+					if softmax_masking:
+						weights = softmax(magnitudes)
 
-		separated_spectrogram1 = mixed_spectrogram * mask1
-		separated_spectrogram2 = mixed_spectrogram * mask2
+						for s in range(len(speakers)):
+							masks[s][i, j] = weights[s]
 
-		reconstructed_signal1 = mel_converter.reconstruct_signal_from_mel_spectrogram(separated_spectrogram1)
-		reconstructed_signal2 = mel_converter.reconstruct_signal_from_mel_spectrogram(separated_spectrogram2)
+					else:
+						sort_indices = np.argsort(magnitudes)
+						dominant_speaker = sort_indices[-1]
+						sub_dominant_speaker = sort_indices[-2]
 
-		source_separation_dir_path = os.path.join(separation_output_dir, source_name1 + "_" + source_name2)
-		os.mkdir(source_separation_dir_path)
+						if magnitudes[dominant_speaker] - magnitudes[sub_dominant_speaker] > 1:
+							masks[dominant_speaker][i, j] = 1
 
-		reconstructed_signal1.save_to_wav_file(os.path.join(source_separation_dir_path, "predicted1.wav"))
-		reconstructed_signal2.save_to_wav_file(os.path.join(source_separation_dir_path, "predicted2.wav"))
+			separated_spectrograms = [mixed_spectrogram * mask for mask in masks]
+			reconstructed_signals = [mel_converter.reconstruct_signal_from_mel_spectrogram(s) for s in separated_spectrograms]
 
-		mixed_signal.save_to_wav_file(os.path.join(source_separation_dir_path, "mix.wav"))
+			source_separation_dir_path = os.path.join(separation_output_dir, '_'.join(source_names))
+			os.mkdir(source_separation_dir_path)
 
-		shutil.copy(source_file_path1, source_separation_dir_path)
-		shutil.copy(source_file_path2, source_separation_dir_path)
+			for i in range(len(source_file_paths)):
+				shutil.copy(source_file_paths[i], os.path.join(source_separation_dir_path, "source-%d.wav" % i))
+				reconstructed_signals[i].save_to_wav_file(os.path.join(source_separation_dir_path, "estimated-%d.wav" % i))
+
+			mixed_signal.save_to_wav_file(os.path.join(source_separation_dir_path, "mixture.wav"))
+
+		except Exception as e:
+			print("failed to separate mixture (%s). skipping" % e)
 
 
 def main():
@@ -94,7 +93,7 @@ def main():
 	parser.add_argument("dataset_dir", type=str)
 	parser.add_argument("speech_prediction_dir", type=str)
 	parser.add_argument("separation_output_dir", type=str)
-	parser.add_argument("speakers", nargs=2, type=str)
+	parser.add_argument("speakers", nargs='+', type=str)
 	args = parser.parse_args()
 
 	separate(args.dataset_dir, args.speech_prediction_dir, args.separation_output_dir, args.speakers)
