@@ -5,9 +5,9 @@ from datetime import datetime
 
 import numpy as np
 
-from video2speech import data_processor
-from video2speech.network import VideoToSpeechNet
 from dataset import AudioVisualDataset
+global data_processor
+global VideoToSpeechNet
 
 
 def preprocess(args):
@@ -15,7 +15,7 @@ def preprocess(args):
 	dataset = AudioVisualDataset(args.dataset_dir)
 
 	for speaker_id in speaker_ids:
-		data_subset = dataset.subset([speaker_id], max_files=500, shuffle=True)
+		data_subset = dataset.subset([speaker_id], shuffle=True)
 
 		video_samples, audio_samples = data_processor.preprocess_data(data_subset)
 		video_samples = data_processor.normalize_video_samples(video_samples)
@@ -31,7 +31,7 @@ def train(args):
 		args.preprocessed_dir, speaker_ids, max_speaker_samples=5000, max_total_samples=100000
 	)
 
-	network = VideoToSpeechNet.build(video_shape=video_samples.shape[1:], audio_spectrogram_size=audio_samples.shape[1])
+	network = VideoToSpeechNet.build(video_samples.shape[1:], audio_samples.shape[1])
 	network.train(video_samples, audio_samples)
 	network.dump(args.model_cache, args.weights_cache)
 
@@ -106,8 +106,22 @@ def load_preprocessed_samples(preprocessed_dir, speaker_ids, max_speaker_samples
 	return video_samples[:max_total_samples], audio_samples[:max_total_samples]
 
 
+def load_framework(model):
+	global data_processor
+	global VideoToSpeechNet
+
+	if model == "vid2speech":
+		from video2speech import data_processor
+		from video2speech.network import VideoToSpeechNet
+	else:
+		from video2speech_vggface import data_processor
+		from video2speech_vggface.network import VideoToSpeechNet
+
+
 def main():
 	parser = argparse.ArgumentParser(add_help=False)
+	parser.add_argument("model", type=str, choices=["vid2speech", "vggface"])
+
 	action_parsers = parser.add_subparsers()
 
 	preprocess_parser = action_parsers.add_parser("preprocess")
@@ -136,6 +150,8 @@ def main():
 	predict_parser.set_defaults(func=predict)
 
 	args = parser.parse_args()
+
+	load_framework(args.model)
 	args.func(args)
 
 if __name__ == "__main__":
