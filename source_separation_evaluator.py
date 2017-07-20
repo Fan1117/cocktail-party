@@ -29,12 +29,13 @@ def evaluate(separation_dir_path):
 		source_data = source_data[:, :estimated_data.shape[1]]
 
 		sdr, sir, sar, _ = mir_eval.separation.bss_eval_sources(source_data, estimated_data, compute_permutation=True)
+		print("SDR: %s | SIR: %s | SAR: %s" % (sdr, sir, sar))
 
 		sdrs.append(sdr)
 		sirs.append(sir)
 		sars.append(sar)
 
-	print("SDR: %f | SIR: %f | SAR: %f" % (np.mean(sdrs), np.mean(sirs), np.mean(sars)))
+	print("mean: SDR: %f | SIR: %f | SAR: %f" % (np.mean(sdrs), np.mean(sirs), np.mean(sars)))
 
 
 def main():
