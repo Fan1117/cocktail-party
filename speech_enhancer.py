@@ -12,9 +12,7 @@ from dsp.spectrogram import MelConverter
 from dataset import AudioVisualDataset
 
 
-def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir,
-			enhancement_output_dir, max_pairs=None, enhancement_threshold=70):
-
+def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir, enhancement_output_dir, enhancement_threshold, max_pairs=20):
 	dataset = AudioVisualDataset(dataset_dir)
 	speaker_files = dataset.subset([speaker_id], shuffle=True).audio_paths()
 	noise_files = glob.glob(os.path.join(noise_dir, "*.wav"))
@@ -29,7 +27,7 @@ def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir,
 
 	for speaker_file_path, noise_file_path in source_file_pairs:
 		try:
-			print("predicting mix of %s, %s" % (speaker_file_path, noise_file_path))
+			print("enhancing mix of %s, %s" % (speaker_file_path, noise_file_path))
 
 			speaker_source_signal = AudioSignal.from_wav_file(speaker_file_path)
 			noise_source_signal = AudioSignal.from_wav_file(noise_file_path)
@@ -82,9 +80,13 @@ def main():
 	parser.add_argument("noise_dir", type=str)
 	parser.add_argument("speech_prediction_dir", type=str)
 	parser.add_argument("enhancement_output_dir", type=str)
+	parser.add_argument("threshold", type=int)
 	args = parser.parse_args()
 
-	enhance(args.dataset_dir, args.speaker, args.noise_dir, args.speech_prediction_dir, args.enhancement_output_dir, max_pairs=10)
+	enhance(
+		args.dataset_dir, args.speaker, args.noise_dir, args.speech_prediction_dir,
+		args.enhancement_output_dir, enhancement_threshold=args.threshold
+	)
 
 
 if __name__ == "__main__":
