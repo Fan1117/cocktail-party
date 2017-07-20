@@ -61,10 +61,8 @@ def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir,
 			speech_enhancement_mask[predicted_speech_spectrogram > enhancement_threshold] = 1
 
 			enhanced_speech_spectrogram = mixed_spectrogram * speech_enhancement_mask
-			isolated_noise_spectrogram = mixed_spectrogram * (1 - speech_enhancement_mask)
 
 			reconstructed_speech_signal = mel_converter.reconstruct_signal_from_mel_spectrogram(enhanced_speech_spectrogram)
-			reconstructed_noise_signal = mel_converter.reconstruct_signal_from_mel_spectrogram(isolated_noise_spectrogram)
 
 			speech_enhancement_dir_path = os.path.join(enhancement_output_dir, speaker_file_name + "_" + noise_file_name)
 			os.mkdir(speech_enhancement_dir_path)
