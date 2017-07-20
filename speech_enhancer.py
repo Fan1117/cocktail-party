@@ -69,12 +69,9 @@ def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir,
 			speech_enhancement_dir_path = os.path.join(enhancement_output_dir, speaker_file_name + "_" + noise_file_name)
 			os.mkdir(speech_enhancement_dir_path)
 
-			reconstructed_speech_signal.save_to_wav_file(os.path.join(speech_enhancement_dir_path, "estimated-0.wav"))
-			reconstructed_noise_signal.save_to_wav_file(os.path.join(speech_enhancement_dir_path, "estimated-1.wav"))
+			reconstructed_speech_signal.save_to_wav_file(os.path.join(speech_enhancement_dir_path, "enhanced.wav"))
 			mixed_signal.save_to_wav_file(os.path.join(speech_enhancement_dir_path, "mixture.wav"))
-
-			speaker_source_signal.save_to_wav_file(os.path.join(speech_enhancement_dir_path, "source-0.wav"))
-			noise_source_signal.save_to_wav_file(os.path.join(speech_enhancement_dir_path, "source-1.wav"))
+			speaker_source_signal.save_to_wav_file(os.path.join(speech_enhancement_dir_path, "source.wav"))
 
 		except Exception as e:
 			print("failed to enhance (%s). skipping" % e)
