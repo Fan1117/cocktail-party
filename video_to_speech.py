@@ -45,7 +45,7 @@ def predict(args):
 
 	for speaker_id in speaker_ids:
 		video_samples, audio_samples = load_preprocessed_samples(
-			args.preprocessed_dir, [speaker_id], max_speaker_samples=500
+			args.preprocessed_dir, [speaker_id], max_speaker_samples=800
 		)
 
 		network = VideoToSpeechNet.load(args.model_cache, args.weights_cache)
