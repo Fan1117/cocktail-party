@@ -9,9 +9,9 @@ class MelConverter:
 	N_FFT = 2048
 	HOP_LENGTH = 128
 
-	N_MEL_FREQS = 80
-	# FREQ_MIN_HZ = 300
-	# FREQ_MAX_HZ = 3400
+	N_MEL_FREQS = 128
+	FREQ_MIN_HZ = 300
+	FREQ_MAX_HZ = 3400
 
 	def __init__(self, sample_rate):
 		self._SAMPLE_RATE = sample_rate
@@ -20,8 +20,8 @@ class MelConverter:
 			sr=self._SAMPLE_RATE,
 			n_fft=MelConverter.N_FFT,
 			n_mels=MelConverter.N_MEL_FREQS,
-			# fmin=MelConverter.FREQ_MIN_HZ,
-			# fmax=MelConverter.FREQ_MAX_HZ
+			fmin=MelConverter.FREQ_MIN_HZ,
+			fmax=MelConverter.FREQ_MAX_HZ
 		)
 
 	def signal_to_mel_spectrogram(self, audio_signal):
