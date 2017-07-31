@@ -63,6 +63,11 @@ class FaceDetector:
 
 	@staticmethod
 	def _crop(image, bounding_box):
+		if bounding_box.top < 0 or bounding_box.bottom >= image.shape[0] \
+			or bounding_box.left < 0 or bounding_box.right >= image.shape[1]:
+
+			raise Exception("bounding box exceeds image dimensions")
+
 		return image[
 			bounding_box.top: bounding_box.top + bounding_box.get_height(),
 			bounding_box.left: bounding_box.left + bounding_box.get_width()
