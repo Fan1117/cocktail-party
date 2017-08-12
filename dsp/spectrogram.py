@@ -9,19 +9,18 @@ class MelConverter:
 	N_FFT = 2048
 	HOP_LENGTH = 128
 
-	N_MEL_FREQS = 128
-	FREQ_MIN_HZ = 300
-	FREQ_MAX_HZ = 3400
-
-	def __init__(self, sample_rate):
+	def __init__(self, sample_rate, n_mel_freqs=128, freq_min_hz=0, freq_max_hz=None):
 		self._SAMPLE_RATE = sample_rate
+		self._N_MEL_FREQS = n_mel_freqs
+		self._FREQ_MIN_HZ = freq_min_hz
+		self._FREQ_MAX_HZ = freq_max_hz
 
 		self._MEL_FILTER = librosa.filters.mel(
 			sr=self._SAMPLE_RATE,
 			n_fft=MelConverter.N_FFT,
-			n_mels=MelConverter.N_MEL_FREQS,
-			fmin=MelConverter.FREQ_MIN_HZ,
-			fmax=MelConverter.FREQ_MAX_HZ
+			n_mels=self._N_MEL_FREQS,
+			fmin=self._FREQ_MIN_HZ,
+			fmax=self._FREQ_MAX_HZ
 		)
 
 	def signal_to_mel_spectrogram(self, audio_signal):
@@ -42,6 +41,9 @@ class MelConverter:
 		inverted_audio_signal.set_sample_type(np.int16, equalize=True)
 
 		return inverted_audio_signal
+
+	def get_n_mel_freqs(self):
+		return self._N_MEL_FREQS
 
 
 def griffin_lim(magnitude, n_fft, hop_length, n_iterations):

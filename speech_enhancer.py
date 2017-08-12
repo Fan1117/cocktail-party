@@ -39,7 +39,7 @@ def enhance(dataset_dir, speaker_id, noise_dir, speech_prediction_dir, enhanceme
 
 			mixed_signal = AudioMixer.mix([speaker_source_signal, noise_source_signal])
 
-			mel_converter = MelConverter(mixed_signal.get_sample_rate())
+			mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=4000)
 			mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
 
 			speaker_file_name = os.path.splitext(os.path.basename(speaker_file_path))[0]

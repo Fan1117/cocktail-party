@@ -68,7 +68,7 @@ def preprocess_audio_sample(audio_file_path, slice_duration_ms=330):
 
 	audio_signal.pad_with_zeros(new_signal_length)
 
-	mel_converter = MelConverter(audio_signal.get_sample_rate())
+	mel_converter = MelConverter(audio_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=4000)
 	mel_spectrogram = mel_converter.signal_to_mel_spectrogram(audio_signal)
 
 	samples_per_slice = int((float(slice_duration_ms) / 1000) * audio_signal.get_sample_rate())
@@ -76,7 +76,7 @@ def preprocess_audio_sample(audio_file_path, slice_duration_ms=330):
 
 	n_slices = int(mel_spectrogram.shape[1] / spectrogram_samples_per_slice)
 
-	sample = np.ndarray(shape=(n_slices, MelConverter.N_MEL_FREQS * spectrogram_samples_per_slice))
+	sample = np.ndarray(shape=(n_slices, mel_converter.get_n_mel_freqs() * spectrogram_samples_per_slice))
 
 	for i in range(n_slices):
 		sample[i, :] = mel_spectrogram[:, (i * spectrogram_samples_per_slice):((i + 1) * spectrogram_samples_per_slice)].flatten()
@@ -85,10 +85,11 @@ def preprocess_audio_sample(audio_file_path, slice_duration_ms=330):
 
 
 def reconstruct_audio_signal(audio_sample, sample_rate):
-	slice_mel_spectrograms = [audio_sample[i, :].reshape((MelConverter.N_MEL_FREQS, -1)) for i in range(audio_sample.shape[0])]
+	mel_converter = MelConverter(sample_rate, n_mel_freqs=128, freq_min_hz=0, freq_max_hz=4000)
+
+	slice_mel_spectrograms = [audio_sample[i, :].reshape((mel_converter.get_n_mel_freqs(), -1)) for i in range(audio_sample.shape[0])]
 	full_mel_spectrogram = np.concatenate(slice_mel_spectrograms, axis=1)
 
-	mel_converter = MelConverter(sample_rate)
 	return mel_converter.reconstruct_signal_from_mel_spectrogram(full_mel_spectrogram)
 
 

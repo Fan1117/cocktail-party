@@ -35,7 +35,7 @@ def separate(dataset_dir, speech_prediction_dir, separation_output_dir, speakers
 			source_signals = [AudioSignal.from_wav_file(f) for f in source_file_paths]
 			mixed_signal = AudioMixer.mix(source_signals)
 
-			mel_converter = MelConverter(mixed_signal.get_sample_rate())
+			mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=4000)
 			mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
 
 			source_names = [os.path.splitext(os.path.basename(f))[0] for f in source_file_paths]
