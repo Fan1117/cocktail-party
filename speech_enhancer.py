@@ -30,7 +30,7 @@ def enhance_speech(speaker_file_path, noise_file_path, speech_prediction_path, e
 	for signal in signals:
 		signal.pad_with_zeros(max_length)
 
-	mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=300, freq_max_hz=3400)
+	mel_converter = MelConverter(mixed_signal.get_sample_rate())
 	mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
 	predicted_speech_spectrogram = mel_converter.signal_to_mel_spectrogram(predicted_speech_signal)
 

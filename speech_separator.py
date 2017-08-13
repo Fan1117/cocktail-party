@@ -38,7 +38,7 @@ def separate_sources(source_file_paths, prediction_file_paths, separation_functi
 
 	mixed_signal = AudioMixer.mix(source_signals)
 
-	mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=300, freq_max_hz=3400)
+	mel_converter = MelConverter(mixed_signal.get_sample_rate())
 	mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
 	prediction_spectrograms = [mel_converter.signal_to_mel_spectrogram(signal) for signal in prediction_signals]
 
