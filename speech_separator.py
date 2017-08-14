@@ -64,6 +64,7 @@ def apply_source_separation(dataset_dir, prediction_input_dir, separation_output
 
 			for i in range(len(source_file_paths)):
 				shutil.copy(source_file_paths[i], os.path.join(source_separation_dir_path, "source-%d.wav" % i))
+				shutil.copy(prediction_file_paths[i], os.path.join(source_separation_dir_path, "prediction-%d.wav" % i))
 				separated_signals[i].save_to_wav_file(os.path.join(source_separation_dir_path, "estimated-%d.wav" % i))
 
 			mixed_signal.save_to_wav_file(os.path.join(source_separation_dir_path, "mixture.wav"))
