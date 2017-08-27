@@ -7,7 +7,7 @@ Implementation of the methods described in the paper: [Seeing Through Noise: Spe
 <img src="http://img.youtube.com/vi/qmsyj7vAzoI/0.jpg" width="480" height="360" />
 </a>
 
-<br/>
+
 If you find this project useful for your research, please cite
 ```
 @inproceedings{gabbay2017seeing,
