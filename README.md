@@ -4,10 +4,10 @@ Implementation of the methods described in the paper: [Seeing Through Noise: Spe
 
 ### Speaker Separation and Enhancement Demo
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=qmsyj7vAzoI" target="_blank">
-<img src="http://img.youtube.com/vi/qmsyj7vAzoI/0.jpg" width="640" height="360" border="10" />
+<img src="http://img.youtube.com/vi/qmsyj7vAzoI/0.jpg" width="480" height="360" />
 </a>
 
-
+<br/>
 If you find this project useful for your research, please cite
 ```
 @inproceedings{gabbay2017seeing,
