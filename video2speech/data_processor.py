@@ -15,11 +15,11 @@ def preprocess_video_sample(video_file_path, slice_duration_ms=330, mouth_height
 	face_detector = FaceDetector()
 
 	with VideoFileReader(video_file_path) as reader:
-		frames = reader.read_all_frames()
-
 		mouth_cropped_frames = np.zeros(shape=(reader.get_frame_count(), mouth_height, mouth_width, 3), dtype=np.float32)
+
 		for i in range(reader.get_frame_count()):
-			mouth_cropped_frames[i, :] = face_detector.crop_mouth(frames[i, :], bounding_box_shape=(mouth_width, mouth_height))
+			frame = reader.read_next_frame()
+			mouth_cropped_frames[i, :] = face_detector.crop_mouth(frame, bounding_box_shape=(mouth_width, mouth_height))
 
 		frames_per_slice = (float(slice_duration_ms) / 1000) * reader.get_frame_rate()
 		n_slices = int(float(reader.get_frame_count()) / frames_per_slice)

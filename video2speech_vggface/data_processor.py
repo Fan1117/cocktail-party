@@ -21,11 +21,11 @@ def preprocess_video_sample(video_file_path, slice_duration_ms=330):
 	face_detector = FaceDetector()
 
 	with VideoFileReader(video_file_path) as reader:
-		frames = reader.read_all_frames()
-
 		features = np.zeros(shape=(reader.get_frame_count(), 512), dtype=np.float32)
 		for i in range(reader.get_frame_count()):
-			face = face_detector.crop_face(frames[i, :])
+			frame = reader.read_next_frame()
+
+			face = face_detector.crop_face(frame)
 			face = cv2.resize(face, (224, 224))
 
 			x = np.expand_dims(face, axis=0)
