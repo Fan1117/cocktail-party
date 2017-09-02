@@ -18,7 +18,6 @@ def preprocess(args):
 		data_subset = dataset.subset([speaker_id], shuffle=True)
 
 		video_samples, audio_samples = data_processor.preprocess_data(data_subset)
-		video_samples = data_processor.normalize_video_samples(video_samples)
 
 		preprocessed_speaker_path = os.path.join(args.preprocessed_dir, speaker_id)
 		np.savez(preprocessed_speaker_path, video_samples=video_samples, audio_samples=audio_samples)
@@ -30,6 +29,8 @@ def train(args):
 	video_samples, audio_samples = load_preprocessed_samples(
 		args.preprocessed_dir, speaker_ids, max_speaker_samples=5000, max_total_samples=100000
 	)
+
+	data_processor.normalize(video_samples, args.normalization_cache)
 
 	network = VideoToSpeechNet.build(video_samples.shape[1:], audio_samples.shape[1])
 	network.train(video_samples, audio_samples)
@@ -48,6 +49,8 @@ def predict(args):
 			args.preprocessed_dir, [speaker_id], max_speaker_samples=800
 		)
 
+		data_processor.apply_normalization(video_samples, args.normalization_cache)
+
 		network = VideoToSpeechNet.load(args.model_cache, args.weights_cache)
 		network.fine_tune(video_samples, audio_samples)
 
@@ -57,9 +60,8 @@ def predict(args):
 		video_file_paths = dataset.subset([speaker_id]).video_paths()
 		for video_file_path in video_file_paths:
 			try:
-				video_sample = data_processor.normalize_video_samples(
-					data_processor.preprocess_video_sample(video_file_path)
-				)
+				video_sample = data_processor.preprocess_video_sample(video_file_path)
+				data_processor.apply_normalization(video_sample, args.normalization_cache)
 
 				predicted_audio_sample = network.predict(video_sample)
 
@@ -135,6 +137,7 @@ def main():
 	train_parser.add_argument("--preprocessed_dir", type=str, required=True)
 	train_parser.add_argument("--model_cache", type=str, required=True)
 	train_parser.add_argument("--weights_cache", type=str, required=True)
+	train_parser.add_argument("--normalization_cache", type=str, required=True)
 	train_parser.add_argument("--speakers", nargs="+", type=str)
 	train_parser.add_argument("--ignored_speakers", nargs="+", type=str)
 	train_parser.set_defaults(func=train)
@@ -144,6 +147,7 @@ def main():
 	predict_parser.add_argument("--preprocessed_dir", type=str, required=True)
 	predict_parser.add_argument("--model_cache", type=str, required=True)
 	predict_parser.add_argument("--weights_cache", type=str, required=True)
+	predict_parser.add_argument("--normalization_cache", type=str, required=True)
 	predict_parser.add_argument("--prediction_output_dir", type=str, required=True)
 	predict_parser.add_argument("--speakers", nargs="+", type=str)
 	predict_parser.add_argument("--ignored_speakers", nargs="+", type=str)

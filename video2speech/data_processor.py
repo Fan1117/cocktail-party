@@ -2,6 +2,7 @@ import math
 import multiprocessing
 
 import numpy as np
+import pickle
 
 from dsp.spectrogram import MelConverter
 from facedetection.face_detection import FaceDetector
@@ -15,17 +16,17 @@ def preprocess_video_sample(video_file_path, slice_duration_ms=330, mouth_height
 	face_detector = FaceDetector()
 
 	with VideoFileReader(video_file_path) as reader:
-		mouth_cropped_frames = np.zeros(shape=(reader.get_frame_count(), mouth_height, mouth_width, 3), dtype=np.float32)
+		cropped_frames = np.zeros(shape=(reader.get_frame_count(), mouth_height, mouth_width, 3), dtype=np.float32)
 
 		for i in range(reader.get_frame_count()):
 			frame = reader.read_next_frame()
-			mouth_cropped_frames[i, :] = face_detector.crop_mouth(frame, bounding_box_shape=(mouth_width, mouth_height))
+			cropped_frames[i, :] = face_detector.crop_mouth(frame, bounding_box_shape=(mouth_width, mouth_height))
 
-		frames_per_slice = (float(slice_duration_ms) / 1000) * reader.get_frame_rate()
+		frames_per_slice = int(math.ceil((float(slice_duration_ms) / 1000) * reader.get_frame_rate()))
 		n_slices = int(float(reader.get_frame_count()) / frames_per_slice)
 
 		slices = [
-			mouth_cropped_frames[int(i * frames_per_slice) : int(math.ceil((i + 1) * frames_per_slice))]
+			cropped_frames[(i * frames_per_slice):((i + 1) * frames_per_slice)]
 			for i in range(n_slices)
 		]
 
@@ -60,12 +61,12 @@ def preprocess_audio_sample(audio_file_path, slice_duration_ms=330):
 
 	n_slices = int(mel_spectrogram.shape[1] / spectrogram_samples_per_slice)
 
-	sample = np.ndarray(shape=(n_slices, mel_converter.get_n_mel_freqs() * spectrogram_samples_per_slice))
+	slices = [
+		mel_spectrogram[:, (i * spectrogram_samples_per_slice):((i + 1) * spectrogram_samples_per_slice)].flatten()
+		for i in range(n_slices)
+	]
 
-	for i in range(n_slices):
-		sample[i, :] = mel_spectrogram[:, (i * spectrogram_samples_per_slice):((i + 1) * spectrogram_samples_per_slice)].flatten()
-
-	return sample
+	return np.stack(slices)
 
 
 def reconstruct_audio_signal(audio_sample, sample_rate):
@@ -91,9 +92,33 @@ def preprocess_data(data):
 	return np.concatenate(video_samples), np.concatenate(audio_samples)
 
 
-#TODO: use image-specific normalizations (channelwise?)
-def normalize_video_samples(video_samples):
-	video_samples /= 255
-	video_samples -= np.mean(video_samples)
+def normalize(video_samples, normalization_cache):
+	normalization_data = __init_normalization_data(video_samples)
 
-	return video_samples
+	with open(normalization_cache, 'wb') as normalization_cache_fd:
+		pickle.dump(normalization_data, normalization_cache_fd)
+
+	apply_normalization(video_samples, normalization_cache)
+
+
+def apply_normalization(video_samples, normalization_cache):
+	with open(normalization_cache, 'rb') as normalization_cache_fd:
+		normalization_data = pickle.load(normalization_cache_fd)
+
+	video_samples /= 255
+
+	for channel in range(3):
+		video_samples[:, :, :, :, channel] -= normalization_data.channel_means[channel]
+
+
+def __init_normalization_data(video_samples):
+	# video_samples: slices x frames_per_slice x height x width x channels
+	channel_means = [video_samples[:, :, :, :, channel].mean() / 255 for channel in range(3)]
+
+	return VideoNormalizationData(channel_means)
+
+
+class VideoNormalizationData:
+
+	def __init__(self, channel_means):
+		self.channel_means = channel_means

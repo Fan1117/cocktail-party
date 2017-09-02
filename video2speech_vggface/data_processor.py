@@ -37,11 +37,11 @@ def preprocess_video_sample(video_file_path, slice_duration_ms=330):
 
 			features[i, :] = vgg_model.predict(x)
 
-		frames_per_slice = (float(slice_duration_ms) / 1000) * reader.get_frame_rate()
+		frames_per_slice = int(math.ceil((float(slice_duration_ms) / 1000) * reader.get_frame_rate()))
 		n_slices = int(float(reader.get_frame_count()) / frames_per_slice)
 
 		slices = [
-			features[int(i * frames_per_slice) : int(math.ceil((i + 1) * frames_per_slice))]
+			features[(i * frames_per_slice):((i + 1) * frames_per_slice)]
 			for i in range(n_slices)
 		]
 
@@ -76,12 +76,12 @@ def preprocess_audio_sample(audio_file_path, slice_duration_ms=330):
 
 	n_slices = int(mel_spectrogram.shape[1] / spectrogram_samples_per_slice)
 
-	sample = np.ndarray(shape=(n_slices, mel_converter.get_n_mel_freqs() * spectrogram_samples_per_slice))
+	slices = [
+		mel_spectrogram[:, (i * spectrogram_samples_per_slice):((i + 1) * spectrogram_samples_per_slice)].flatten()
+		for i in range(n_slices)
+	]
 
-	for i in range(n_slices):
-		sample[i, :] = mel_spectrogram[:, (i * spectrogram_samples_per_slice):((i + 1) * spectrogram_samples_per_slice)].flatten()
-
-	return sample
+	return np.stack(slices)
 
 
 def reconstruct_audio_signal(audio_sample, sample_rate):
@@ -107,5 +107,9 @@ def preprocess_data(data):
 	return np.concatenate(video_samples), np.concatenate(audio_samples)
 
 
-def normalize_video_samples(video_samples):
-	return video_samples
+def normalize(video_samples, normalization_cache):
+	return
+
+
+def apply_normalization(video_samples, normalization_cache):
+	return
