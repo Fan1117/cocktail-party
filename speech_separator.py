@@ -38,7 +38,7 @@ def separate_sources(source_file_paths, prediction_file_paths, separation_functi
 
 	mixed_signal = AudioMixer.mix(source_signals)
 
-	mel_converter = MelConverter(mixed_signal.get_sample_rate(), freq_min_hz=0, freq_max_hz=4000)
+	mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=None)
 	mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
 	prediction_spectrograms = [mel_converter.signal_to_mel_spectrogram(signal) for signal in prediction_signals]
 
@@ -97,15 +97,13 @@ def softmax_separator(magnitudes):
 	return [i / m_exp_sum for i in m_exp]
 
 
-def binary_separator(magnitudes, domination_threshold=1):
+def binary_separator(magnitudes):
 	weights = [0] * len(magnitudes)
 
 	sort_indices = np.argsort(magnitudes)
 	dominant_source = sort_indices[-1]
-	sub_dominant_source = sort_indices[-2]
 
-	if magnitudes[dominant_source] - magnitudes[sub_dominant_source] > domination_threshold:
-		weights[dominant_source] = 1
+	weights[dominant_source] = 1
 
 	return weights
 
