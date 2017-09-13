@@ -39,12 +39,12 @@ def separate_sources(source_file_paths, prediction_file_paths, separation_functi
 	mixed_signal = AudioMixer.mix(source_signals)
 
 	mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=None)
-	mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
+	mixed_spectrogram, original_phase = mel_converter.signal_to_mel_spectrogram(mixed_signal, get_phase=True)
 	prediction_spectrograms = [mel_converter.signal_to_mel_spectrogram(signal) for signal in prediction_signals]
 
 	masks = generate_separation_masks(mixed_spectrogram, prediction_spectrograms, separation_function)
 	separated_spectrograms = [mixed_spectrogram * mask for mask in masks]
-	separated_signals = [mel_converter.reconstruct_signal_from_mel_spectrogram(s) for s in separated_spectrograms]
+	separated_signals = [mel_converter.reconstruct_signal_from_mel_spectrogram(s, original_phase) for s in separated_spectrograms]
 
 	return mixed_signal, separated_signals
 

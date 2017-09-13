@@ -23,19 +23,26 @@ class MelConverter:
 			fmax=self._FREQ_MAX_HZ
 		)
 
-	def signal_to_mel_spectrogram(self, audio_signal):
+	def signal_to_mel_spectrogram(self, audio_signal, get_phase=False):
 		signal = audio_signal.get_data(channel_index=0)
 		D = librosa.core.stft(signal, n_fft=MelConverter.N_FFT, hop_length=MelConverter.HOP_LENGTH)
 		magnitude, phase = librosa.core.magphase(D)
 
 		mel_spectrogram = np.dot(self._MEL_FILTER, magnitude)
-		return librosa.amplitude_to_db(mel_spectrogram)
 
-	def reconstruct_signal_from_mel_spectrogram(self, mel_spectrogram):
+		if get_phase:
+			return librosa.amplitude_to_db(mel_spectrogram), phase
+		else:
+			return librosa.amplitude_to_db(mel_spectrogram)
+
+	def reconstruct_signal_from_mel_spectrogram(self, mel_spectrogram, original_phase=None):
 		mel_spectrogram = librosa.db_to_amplitude(mel_spectrogram)
 		magnitude = np.dot(np.linalg.pinv(self._MEL_FILTER), mel_spectrogram)
 
-		inverted_signal = griffin_lim(magnitude, MelConverter.N_FFT, MelConverter.HOP_LENGTH, n_iterations=10)
+		if original_phase is not None:
+			inverted_signal = librosa.istft(magnitude * original_phase, hop_length=MelConverter.HOP_LENGTH)
+		else:
+			inverted_signal = griffin_lim(magnitude, MelConverter.N_FFT, MelConverter.HOP_LENGTH, n_iterations=10)
 
 		inverted_audio_signal = AudioSignal(inverted_signal, self._SAMPLE_RATE)
 		inverted_audio_signal.set_sample_type(np.int16, equalize=True)

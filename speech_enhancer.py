@@ -31,7 +31,7 @@ def enhance_speech(speaker_file_path, noise_file_path, speech_prediction_path, s
 		signal.pad_with_zeros(max_length)
 
 	mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=4000)
-	mixed_spectrogram = mel_converter.signal_to_mel_spectrogram(mixed_signal)
+	mixed_spectrogram, original_phase = mel_converter.signal_to_mel_spectrogram(mixed_signal, get_phase=True)
 	predicted_speech_spectrogram = mel_converter.signal_to_mel_spectrogram(predicted_speech_signal)
 
 	speech_enhancement_mask = np.zeros(shape=mixed_spectrogram.shape)
@@ -47,7 +47,7 @@ def enhance_speech(speaker_file_path, noise_file_path, speech_prediction_path, s
 				continue
 
 	enhanced_speech_spectrogram = mixed_spectrogram * speech_enhancement_mask
-	enhanced_speech_signal = mel_converter.reconstruct_signal_from_mel_spectrogram(enhanced_speech_spectrogram)
+	enhanced_speech_signal = mel_converter.reconstruct_signal_from_mel_spectrogram(enhanced_speech_spectrogram, original_phase)
 
 	return mixed_signal, enhanced_speech_signal
 
