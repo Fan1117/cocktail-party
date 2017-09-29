@@ -62,17 +62,18 @@ def preprocess_audio_sample(audio_file_path, slice_duration_ms=330):
 
 	audio_signal = AudioSignal.from_wav_file(audio_file_path)
 
+	mel_converter = MelConverter(audio_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=4000)
+
 	new_signal_length = int(math.ceil(
-		float(audio_signal.get_number_of_samples()) / MelConverter.HOP_LENGTH
-	)) * MelConverter.HOP_LENGTH
+		float(audio_signal.get_number_of_samples()) / mel_converter.get_hop_length()
+	)) * mel_converter.get_hop_length()
 
 	audio_signal.pad_with_zeros(new_signal_length)
 
-	mel_converter = MelConverter(audio_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=4000)
 	mel_spectrogram = mel_converter.signal_to_mel_spectrogram(audio_signal)
 
 	samples_per_slice = int((float(slice_duration_ms) / 1000) * audio_signal.get_sample_rate())
-	spectrogram_samples_per_slice = int(samples_per_slice / MelConverter.HOP_LENGTH)
+	spectrogram_samples_per_slice = int(samples_per_slice / mel_converter.get_hop_length())
 
 	n_slices = int(mel_spectrogram.shape[1] / spectrogram_samples_per_slice)
 

@@ -6,18 +6,18 @@ from mediaio.audio_io import AudioSignal
 
 class MelConverter:
 
-	N_FFT = 2048
-	HOP_LENGTH = 128
-
-	def __init__(self, sample_rate, n_mel_freqs=128, freq_min_hz=0, freq_max_hz=None):
+	def __init__(self, sample_rate, n_fft=2048, hop_length=512, n_mel_freqs=128, freq_min_hz=0, freq_max_hz=None):
 		self._SAMPLE_RATE = sample_rate
+		self._N_FFT = n_fft
+		self._HOP_LENGTH = hop_length
+
 		self._N_MEL_FREQS = n_mel_freqs
 		self._FREQ_MIN_HZ = freq_min_hz
 		self._FREQ_MAX_HZ = freq_max_hz
 
 		self._MEL_FILTER = librosa.filters.mel(
 			sr=self._SAMPLE_RATE,
-			n_fft=MelConverter.N_FFT,
+			n_fft=self._N_FFT,
 			n_mels=self._N_MEL_FREQS,
 			fmin=self._FREQ_MIN_HZ,
 			fmax=self._FREQ_MAX_HZ
@@ -25,7 +25,7 @@ class MelConverter:
 
 	def signal_to_mel_spectrogram(self, audio_signal, get_phase=False):
 		signal = audio_signal.get_data(channel_index=0)
-		D = librosa.core.stft(signal, n_fft=MelConverter.N_FFT, hop_length=MelConverter.HOP_LENGTH)
+		D = librosa.core.stft(signal, n_fft=self._N_FFT, hop_length=self._HOP_LENGTH)
 		magnitude, phase = librosa.core.magphase(D)
 
 		mel_spectrogram = np.dot(self._MEL_FILTER, magnitude)
@@ -40,9 +40,9 @@ class MelConverter:
 		magnitude = np.dot(np.linalg.pinv(self._MEL_FILTER), mel_spectrogram)
 
 		if original_phase is not None:
-			inverted_signal = librosa.istft(magnitude * original_phase, hop_length=MelConverter.HOP_LENGTH)
+			inverted_signal = librosa.istft(magnitude * original_phase, hop_length=self._HOP_LENGTH)
 		else:
-			inverted_signal = griffin_lim(magnitude, MelConverter.N_FFT, MelConverter.HOP_LENGTH, n_iterations=10)
+			inverted_signal = griffin_lim(magnitude, self._N_FFT, self._HOP_LENGTH, n_iterations=10)
 
 		inverted_audio_signal = AudioSignal(inverted_signal, self._SAMPLE_RATE)
 		inverted_audio_signal.set_sample_type(np.int16, equalize=True)
@@ -51,6 +51,9 @@ class MelConverter:
 
 	def get_n_mel_freqs(self):
 		return self._N_MEL_FREQS
+
+	def get_hop_length(self):
+		return self._HOP_LENGTH
 
 
 def griffin_lim(magnitude, n_fft, hop_length, n_iterations):
