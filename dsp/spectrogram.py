@@ -45,7 +45,7 @@ class MelConverter:
 			inverted_signal = griffin_lim(magnitude, self._N_FFT, self._HOP_LENGTH, n_iterations=10)
 
 		inverted_audio_signal = AudioSignal(inverted_signal, self._SAMPLE_RATE)
-		inverted_audio_signal.set_sample_type(np.int16, equalize=True)
+		inverted_audio_signal.set_sample_type(np.int16, equalize=False)
 
 		return inverted_audio_signal
 
