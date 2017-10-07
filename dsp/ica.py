@@ -31,7 +31,7 @@ def main():
 	source_signals = SignalSeparator.decompose_signals(mixed_signals)
 	for i, source_signal in enumerate(source_signals):
 		source_audio_signal = AudioSignal(source_signal, mixed_audio_signals[0].get_sample_rate())
-		source_audio_signal.set_sample_type(np.int16, equalize=True)
+		source_audio_signal.set_sample_type(np.int16)
 
 		source_audio_signal.save_to_wav_file(os.path.join(args.output_dir, "d_%d.wav" % i))
 
