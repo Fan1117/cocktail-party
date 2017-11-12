@@ -54,12 +54,16 @@ class FaceDetector:
 		return [Landmark(landmarks.part(i).x, landmarks.part(i).y) for i in landmark_ids]
 
 	def _detect_face(self, image):
-		detections = self._detector(image)
+		detections, scores, idx = self._detector.run(image, 1, -1)
 
-		if len(detections) != 1:
-			raise Exception("frame contains %d faces" % len(detections))
+		if len(detections) == 0:
+			raise Exception("frame contains 0 faces")
 
-		return detections[0]
+		if len(detections) == 1:
+			return detections[0]
+
+		best_detection = np.argmax(scores)
+		return detections[best_detection]
 
 	@staticmethod
 	def _crop(image, bounding_box):
