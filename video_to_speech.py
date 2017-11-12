@@ -27,7 +27,7 @@ def train(args):
 	speaker_ids = list_speakers(args)
 
 	video_samples, audio_samples = load_preprocessed_samples(
-		args.preprocessed_dir, speaker_ids, max_speaker_samples=5000, max_total_samples=100000
+		args.preprocessed_dir, speaker_ids, max_speaker_samples=20000, max_total_samples=100000
 	)
 
 	data_processor.normalize(video_samples, args.normalization_cache)
@@ -45,19 +45,19 @@ def predict(args):
 	os.mkdir(prediction_output_dir)
 
 	for speaker_id in speaker_ids:
-		video_samples, audio_samples = load_preprocessed_samples(
-			args.preprocessed_dir, [speaker_id], max_speaker_samples=800
-		)
+		#video_samples, audio_samples = load_preprocessed_samples(
+		#	args.preprocessed_dir, [speaker_id], max_speaker_samples=800
+		#)
 
-		data_processor.apply_normalization(video_samples, args.normalization_cache)
+		#data_processor.apply_normalization(video_samples, args.normalization_cache)
 
 		network = VideoToSpeechNet.load(args.model_cache, args.weights_cache)
-		network.fine_tune(video_samples, audio_samples)
+		#network.fine_tune(video_samples, audio_samples)
 
 		speaker_prediction_dir = os.path.join(prediction_output_dir, speaker_id)
 		os.mkdir(speaker_prediction_dir)
 
-		video_file_paths = dataset.subset([speaker_id]).video_paths()
+		video_file_paths = dataset.subset([speaker_id], max_files=10).video_paths()
 		for video_file_path in video_file_paths:
 			try:
 				video_sample = data_processor.preprocess_video_sample(video_file_path)
