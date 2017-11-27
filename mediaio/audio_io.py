@@ -3,7 +3,7 @@ import numpy as np
 
 
 class AudioSignal:
-
+	
 	def __init__(self, data, sample_rate):
 		self._data = np.copy(data)
 		self._sample_rate = sample_rate
@@ -145,11 +145,21 @@ class AudioMixer:
 		s = signal.get_data()
 		n = noise.get_data()
 
+		n = n[:s.size]
+
 		if s.size != n.size:
 			raise Exception('signal and noise must have the same length')
 
-		eq = np.sqrt(np.mean(s ** 2) / np.mean(n ** 2))
-		factor = eq * (10 ** (-snr_db / 20))
+		# print np.mean(s), np.mean(n)
+		# s = s - s.mean()
+		# n = n - n.mean()
+		# print np.mean(s ** 2), np.mean(n ** 2)
+		eq = np.sqrt(np.var(s) / np.var(n))
+		print eq
+		factor = eq * (10 ** (-snr_db / 20.0))
+
+		# return factor
+		print snr_db, factor
 		mixed_signal = AudioSignal(s + n * factor, signal.get_sample_rate())
 		mixed_signal.set_sample_type(signal.get_sample_type())
 		return mixed_signal

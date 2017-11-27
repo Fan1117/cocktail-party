@@ -5,7 +5,6 @@ from mediaio.audio_io import AudioSignal
 
 
 class MelConverter:
-
 	def __init__(self, sample_rate, n_fft=2048, hop_length=512, n_mel_freqs=128, freq_min_hz=0, freq_max_hz=None):
 		self._SAMPLE_RATE = sample_rate
 		self._N_FFT = n_fft
@@ -28,6 +27,9 @@ class MelConverter:
 		D = librosa.core.stft(signal, n_fft=self._N_FFT, hop_length=self._HOP_LENGTH)
 		magnitude, phase = librosa.core.magphase(D)
 
+		# used to get image of raw spectogram
+		# return librosa.amplitude_to_db(magnitude)
+
 		mel_spectrogram = np.dot(self._MEL_FILTER, magnitude)
 
 		if get_phase:
@@ -35,9 +37,11 @@ class MelConverter:
 		else:
 			return librosa.amplitude_to_db(mel_spectrogram)
 
-	def reconstruct_signal_from_mel_spectrogram(self, mel_spectrogram, original_phase=None, peak=None):
-		mel_spectrogram = librosa.db_to_amplitude(mel_spectrogram)
-		magnitude = np.dot(np.linalg.pinv(self._MEL_FILTER), mel_spectrogram)
+	def reconstruct_signal_from_spectrogram(self, spectrogram, original_phase=None, peak=None, mel=True):
+		if mel:
+			magnitude = self.reconstruct_spectrogram_from_mel(spectrogram)
+		else:
+			magnitude = spectrogram
 
 		if original_phase is not None:
 			inverted_signal = librosa.istft(magnitude * original_phase, hop_length=self._HOP_LENGTH)
@@ -52,6 +56,12 @@ class MelConverter:
 		inverted_audio_signal.set_sample_type(np.int16)
 
 		return inverted_audio_signal
+
+	def reconstruct_spectrogram_from_mel(self, mel_spectrogram):
+		mel_spectrogram = librosa.db_to_amplitude(mel_spectrogram)
+		magnitude = np.dot(np.linalg.pinv(self._MEL_FILTER), mel_spectrogram)
+
+		return magnitude
 
 	def get_n_mel_freqs(self):
 		return self._N_MEL_FREQS
