@@ -22,6 +22,8 @@ class MelConverter:
 			fmax=self._FREQ_MAX_HZ
 		)
 
+		self._INVERSE_MEL_FILTER = np.linalg.pinv(self._MEL_FILTER)
+
 	def signal_to_mel_spectrogram(self, audio_signal, get_phase=False):
 		signal = audio_signal.get_data(channel_index=0)
 		D = librosa.core.stft(signal, n_fft=self._N_FFT, hop_length=self._HOP_LENGTH)
@@ -59,9 +61,15 @@ class MelConverter:
 
 	def reconstruct_spectrogram_from_mel(self, mel_spectrogram):
 		mel_spectrogram = librosa.db_to_amplitude(mel_spectrogram)
-		magnitude = np.dot(np.linalg.pinv(self._MEL_FILTER), mel_spectrogram)
+		magnitude = np.dot(self._INVERSE_MEL_FILTER, mel_spectrogram)
 
 		return magnitude
+
+	def sectogram_to_mel(self, spectrogram):
+		mel_spectrogram = np.dot(self._MEL_FILTER, spectrogram)
+		log_mel = librosa.db_to_amplitude(mel_spectrogram)
+
+		return log_mel
 
 	def get_n_mel_freqs(self):
 		return self._N_MEL_FREQS
