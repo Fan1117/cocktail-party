@@ -61,8 +61,9 @@ class AudioSignal:
 		sample_type_info = np.iinfo(sample_type)
 		self._data = self._data.clip(sample_type_info.min, sample_type_info.max).astype(sample_type)
 
-	def amplify(self, reference_signal):
-		factor = float(np.abs(reference_signal.get_data()).max()) / np.abs(self._data).max()
+	def amplify(self, reference_signal, snr_db):
+		s = reference_signal.get_data()
+		factor = np.sqrt(np.var(s) / np.var(self._data)) * (10 ** (-snr_db / 20.0))
 
 		new_max_value = self._data.max() * factor
 		new_min_value = self._data.min() * factor

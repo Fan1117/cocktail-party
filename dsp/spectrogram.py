@@ -39,11 +39,14 @@ class MelConverter:
 		else:
 			return librosa.amplitude_to_db(mel_spectrogram)
 
-	def reconstruct_signal_from_spectrogram(self, spectrogram, original_phase=None, peak=None, mel=True):
+	def reconstruct_signal_from_spectrogram(self, spectrogram, original_phase=None, peak=None, mel=True, db=True):
 		if mel:
 			magnitude = self.reconstruct_spectrogram_from_mel(spectrogram)
 		else:
-			magnitude = spectrogram
+			if db:
+				magnitude = librosa.db_to_amplitude(spectrogram)
+			else:
+				magnitude = spectrogram
 
 		if original_phase is not None:
 			inverted_signal = librosa.istft(magnitude * original_phase, hop_length=self._HOP_LENGTH)
