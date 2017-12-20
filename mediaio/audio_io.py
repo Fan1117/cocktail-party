@@ -65,12 +65,12 @@ class AudioSignal:
 		s = reference_signal.get_data()
 		factor = np.sqrt(np.var(s) / np.var(self._data)) * (10 ** (-snr_db / 20.0))
 
-		new_max_value = self._data.max() * factor
-		new_min_value = self._data.min() * factor
-
-		sample_type_info = np.iinfo(self.get_sample_type())
-		if new_max_value > sample_type_info.max or new_min_value < sample_type_info.min:
-			raise Exception("amplified signal exceeds audio format boundaries")
+		# new_max_value = self._data.max() * factor
+		# new_min_value = self._data.min() * factor
+		#
+		# sample_type_info = np.iinfo(self.get_sample_type())
+		# if new_max_value > sample_type_info.max or new_min_value < sample_type_info.min:
+		# 	raise Exception("amplified signal exceeds audio format boundaries")
 
 		self._data = (self._data.astype(np.float64) * factor).astype(self.get_sample_type())
 
