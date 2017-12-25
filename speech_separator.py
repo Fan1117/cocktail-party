@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 
 from mediaio.audio_io import AudioSignal, AudioMixer
-from dsp.spectrogram import MelConverter
+from mediaio.dsp.spectrogram import MelConverter
 from dataset import AudioVisualDataset
 
 

@@ -6,10 +6,10 @@ import cv2
 
 from keras_vggface.vggface import VGGFace
 
-from dsp.spectrogram import MelConverter
 from facedetection.face_detection import FaceDetector
 from mediaio.audio_io import AudioSignal
 from mediaio.video_io import VideoFileReader
+from mediaio.dsp.spectrogram import MelConverter
 
 
 vgg_model = VGGFace(weights="vggface", include_top=False, pooling="avg")

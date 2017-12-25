@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 
 from mediaio.audio_io import AudioSignal, AudioMixer
-from dsp.spectrogram import MelConverter
+from mediaio.dsp.spectrogram import MelConverter
 from dataset import AudioVisualDataset
 
 
@@ -115,6 +115,7 @@ def main():
 	apply_speech_enhancement(
 		args.dataset_dir, args.speaker, args.noise_dir, args.prediction_input_dir, args.enhancement_output_dir
 	)
+
 
 if __name__ == "__main__":
 	main()
