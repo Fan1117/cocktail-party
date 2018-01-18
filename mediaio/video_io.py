@@ -19,7 +19,10 @@ class VideoFileReader:
 
         frames = np.ndarray(shape=video_shape, dtype=np.uint8)
         for i in range(self.get_frame_count()):
-            frames[i, ] = self.read_next_frame(convert_to_gray_scale=convert_to_gray_scale)
+            try:
+                frames[i, ] = self.read_next_frame(convert_to_gray_scale=convert_to_gray_scale)
+            except Exception as e:
+                print 'skipped frame'
 
         return frames
 

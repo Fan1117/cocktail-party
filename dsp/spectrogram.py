@@ -77,6 +77,7 @@ class MelConverter:
 	def get_n_mel_freqs(self):
 		return self._N_MEL_FREQS
 
+
 	def get_hop_length(self):
 		return self._HOP_LENGTH
 
