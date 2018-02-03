@@ -30,7 +30,7 @@ def enhance_speech(speaker_file_path, noise_file_path, speech_prediction_path, s
 	for signal in signals:
 		signal.pad_with_zeros(max_length)
 
-	mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=4000)
+	mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=None)
 	mixed_spectrogram, original_phase = mel_converter.signal_to_mel_spectrogram(mixed_signal, get_phase=True)
 	predicted_speech_spectrogram = mel_converter.signal_to_mel_spectrogram(predicted_speech_signal)
 
@@ -38,7 +38,7 @@ def enhance_speech(speaker_file_path, noise_file_path, speech_prediction_path, s
 
 	thresholds = np.zeros(shape=(speech_enhancement_mask.shape[0]))
 	for f in range(speech_enhancement_mask.shape[0]):
-		thresholds[f] = np.percentile(speech_profile[f, :], 85)
+		thresholds[f] = np.percentile(speech_profile[f, :], 75)
 
 	for f in range(speech_enhancement_mask.shape[0]):
 		for t in range(speech_enhancement_mask.shape[1]):
@@ -47,7 +47,7 @@ def enhance_speech(speaker_file_path, noise_file_path, speech_prediction_path, s
 				continue
 
 	enhanced_speech_spectrogram = mixed_spectrogram * speech_enhancement_mask
-	enhanced_speech_signal = mel_converter.reconstruct_signal_from_mel_spectrogram(enhanced_speech_spectrogram, original_phase)
+	enhanced_speech_signal = mel_converter.reconstruct_signal_from_mel_spectrogram(enhanced_speech_spectrogram, phase=original_phase)
 
 	return mixed_signal, enhanced_speech_signal
 
@@ -58,7 +58,7 @@ def build_speech_profile(speaker_speech_dir, max_files=50):
 	speech_file_paths = [os.path.join(speaker_speech_dir, f) for f in os.listdir(speaker_speech_dir)][:max_files]
 	speech_signals = [AudioSignal.from_wav_file(f) for f in speech_file_paths]
 
-	mel_converter = MelConverter(speech_signals[0].get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=4000)
+	mel_converter = MelConverter(speech_signals[0].get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=None)
 	speech_spectrograms = [mel_converter.signal_to_mel_spectrogram(signal) for signal in speech_signals]
 
 	speech_profile = np.concatenate(speech_spectrograms, axis=1)
