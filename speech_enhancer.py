@@ -85,6 +85,8 @@ def apply_speech_enhancement(dataset_dir, speaker_id, noise_dir, prediction_inpu
 			)
 
 			shutil.copy(speaker_file_path, os.path.join(speech_enhancement_dir_path, "source.wav"))
+			shutil.copy(speech_prediction_path, os.path.join(speech_enhancement_dir_path, "prediction.wav"))
+
 			enhanced_speech_signal.save_to_wav_file(os.path.join(speech_enhancement_dir_path, "enhanced.wav"))
 			mixed_signal.save_to_wav_file(os.path.join(speech_enhancement_dir_path, "mixture.wav"))
 
