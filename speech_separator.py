@@ -1,7 +1,6 @@
 import argparse
 import os
 import shutil
-import math
 from datetime import datetime
 
 import numpy as np
@@ -39,12 +38,14 @@ def separate_sources(source_file_paths, prediction_file_paths, separation_functi
 	mixed_signal = AudioMixer.mix(source_signals)
 
 	mel_converter = MelConverter(mixed_signal.get_sample_rate(), n_mel_freqs=128, freq_min_hz=0, freq_max_hz=None)
-	mixed_spectrogram, original_phase = mel_converter.signal_to_mel_spectrogram(mixed_signal, get_phase=True)
-	prediction_spectrograms = [mel_converter.signal_to_mel_spectrogram(signal) for signal in prediction_signals]
+	mixed_spectrogram, original_phase = mel_converter.signal_to_mel_spectrogram(mixed_signal, log=False, get_phase=True)
+	prediction_spectrograms = [mel_converter.signal_to_mel_spectrogram(signal, log=False) for signal in prediction_signals]
 
 	masks = generate_separation_masks(mixed_spectrogram, prediction_spectrograms, separation_function)
 	separated_spectrograms = [mixed_spectrogram * mask for mask in masks]
-	separated_signals = [mel_converter.reconstruct_signal_from_mel_spectrogram(s, original_phase) for s in separated_spectrograms]
+	separated_signals = [
+		mel_converter.reconstruct_signal_from_mel_spectrogram(s, log=False, phase=original_phase) for s in separated_spectrograms
+	]
 
 	return mixed_signal, separated_signals
 
@@ -90,11 +91,11 @@ def list_source_pairs(dataset_dir, speakers):
 	return zip(*[subset.audio_paths() for subset in subsets])
 
 
-def softmax_separator(magnitudes):
-	m_exp = [math.exp(m) for m in magnitudes]
-	m_exp_sum = sum(m_exp)
+def ratio_separator(magnitudes):
+	if np.sum(magnitudes) == 0:
+		return np.zeros_like(magnitudes)
 
-	return [i / m_exp_sum for i in m_exp]
+	return [m / np.sum(magnitudes) for m in magnitudes]
 
 
 def binary_separator(magnitudes):
@@ -109,8 +110,8 @@ def binary_separator(magnitudes):
 
 
 def get_separation_function(separation_type):
-	if separation_type == 'softmax':
-		return softmax_separator
+	if separation_type == 'ratio':
+		return ratio_separator
 
 	elif separation_type == 'binary':
 		return binary_separator
@@ -124,7 +125,7 @@ def main():
 	parser.add_argument("dataset_dir", type=str)
 	parser.add_argument("prediction_input_dir", type=str)
 	parser.add_argument("separation_output_dir", type=str)
-	parser.add_argument("separation_type", type=str, choices=["softmax", "binary"])
+	parser.add_argument("separation_type", type=str, choices=["ratio", "binary"])
 	parser.add_argument("speakers", nargs='+', type=str)
 	args = parser.parse_args()
 
