@@ -6,8 +6,8 @@ from datetime import datetime
 import numpy as np
 
 from dataset import AudioVisualDataset
-global data_processor
-global VideoToSpeechNet
+from video2speech import data_processor
+from video2speech.network import VideoToSpeechNet
 
 
 def preprocess(args):
@@ -45,14 +45,7 @@ def predict(args):
 	os.mkdir(prediction_output_dir)
 
 	for speaker_id in speaker_ids:
-		#video_samples, audio_samples = load_preprocessed_samples(
-		#	args.preprocessed_dir, [speaker_id], max_speaker_samples=800
-		#)
-
-		#data_processor.apply_normalization(video_samples, args.normalization_cache)
-
 		network = VideoToSpeechNet.load(args.model_cache, args.weights_cache)
-		#network.fine_tune(video_samples, audio_samples)
 
 		speaker_prediction_dir = os.path.join(prediction_output_dir, speaker_id)
 		os.mkdir(speaker_prediction_dir)
@@ -108,22 +101,8 @@ def load_preprocessed_samples(preprocessed_dir, speaker_ids, max_speaker_samples
 	return video_samples[:max_total_samples], audio_samples[:max_total_samples]
 
 
-def load_framework(model):
-	global data_processor
-	global VideoToSpeechNet
-
-	if model == "vid2speech":
-		from video2speech import data_processor
-		from video2speech.network import VideoToSpeechNet
-	else:
-		from video2speech_vggface import data_processor
-		from video2speech_vggface.network import VideoToSpeechNet
-
-
 def main():
 	parser = argparse.ArgumentParser(add_help=False)
-	parser.add_argument("--model", type=str, choices=["vid2speech", "vggface"], required=True)
-
 	action_parsers = parser.add_subparsers()
 
 	preprocess_parser = action_parsers.add_parser("preprocess")
@@ -154,9 +133,8 @@ def main():
 	predict_parser.set_defaults(func=predict)
 
 	args = parser.parse_args()
-
-	load_framework(args.model)
 	args.func(args)
+
 
 if __name__ == "__main__":
 	main()
