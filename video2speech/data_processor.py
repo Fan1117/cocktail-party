@@ -7,7 +7,7 @@ import pickle
 from facedetection.face_detection import FaceDetector
 from mediaio.audio_io import AudioSignal
 from mediaio.video_io import VideoFileReader
-from mediaio.dsp.spectrogram import MelConverter
+from spectrogram import MelConverter
 
 
 def preprocess_video_sample(video_file_path, slice_duration_ms=330, mouth_height=50, mouth_width=100):
