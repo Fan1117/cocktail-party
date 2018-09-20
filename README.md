@@ -19,11 +19,16 @@ Implementation of the methods described in the paper: [Seeing Through Noise: Spe
 ## Citing
 If you find this project useful for your research, please cite
 ```
-@article{gabbay2017seeing,
-  title={Seeing through noise: Speaker separation and enhancement using visually-derived speech},
-  author={Gabbay, Aviv and Ephrat, Ariel and Halperin, Tavi and Peleg, Shmuel},
-  journal={arXiv preprint arXiv:1708.06767},
-  year={2017}
+@inproceedings{gabbay2018seeing,
+  author    = {Aviv Gabbay and
+               Ariel Ephrat and
+               Tavi Halperin and
+               Shmuel Peleg},
+  title     = {Seeing Through Noise: Visually Driven Speaker Separation And Enhancement},
+  booktitle = {{ICASSP}},
+  pages     = {3051--3055},
+  publisher = {{IEEE}},
+  year      = {2018}
 }
 ```
 
